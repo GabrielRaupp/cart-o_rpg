@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cartão RPG</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="toolbar toolbar--mini">
+      <div class="group">
+        <label class="btnLike" for="inpPhoto">Adicionar foto</label>
+        <input id="inpPhoto" type="file" accept="image/*" hidden>
+        <button id="btnRemovePhoto" type="button">Remover foto</button>
+        <button id="btnReset" type="button">Reset</button>
+        <button id="btnPrint" type="button">Imprimir / Salvar PDF</button>
+      </div>
+    </div>
+
+    <div class="card" id="card">
+      <div class="orn tl"></div><div class="orn tr"></div><div class="orn br"></div><div class="orn bl"></div>
+
+      <div class="grid">
+        <div class="header">
+          <div class="titleBlock">
+            <div class="glyphMarquee" aria-hidden="true">
+              <div class="track" id="glyphTopTrack"></div>
+            </div>
+
+            <div class="nameRow">
+              <input class="bigNameInput" id="inpName" placeholder="Nome (ex: sei lá)" autocomplete="off" />
+              <input class="guildInput" id="inpGuild" placeholder="Guilda (ex: Fênix Prateada)" autocomplete="off" />
+              <span class="saveBadge" id="saveState">salvo</span>
+            </div>
+          </div>
+
+          <div class="headerRight">
+            <div class="portrait">
+            <div class="portraitFrame" data-mode="body">
+                <img id="charPhoto" alt="Foto do personagem" />
+                <div class="portraitPlaceholder" id="photoPlaceholder">SEM FOTO</div>
+            </div>
+              <div class="portraitHint">A foto fica salva no navegador (local)</div>
+            </div>
+
+            <div class="meta">
+              <div class="metaBox">
+                <h4>Status</h4>
+                <div class="kv">
+                  <div><b>Nv</b>: <span id="outNv">1</span></div>
+                  <div><b>XP</b>: <span id="outXp">0</span></div>
+                  <div><b>HP</b>: <span id="outHp">10</span></div>
+                  <div><b>PM</b>: <span id="outPm">5</span></div>
+                  <div><b>CA</b>: <span id="outCa">10</span></div>
+                  <div><b>PI</b>: <span id="outPi">0</span></div>
+                </div>
+              </div>
+
+              <div class="metaBox">
+                <h4>Ficha rápida</h4>
+                <div class="kv">
+                  <div><b>Idade</b>: <span id="outIdade">?</span></div>
+                  <div><b>Altura</b>: <span id="outAltura">?</span></div>
+                  <div><b>Raça</b>: <span id="outRaca">?</span></div>
+                  <div><b>Classe</b>: <span id="outClasse">?</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="left">
+          <div class="sectionTitle">
+            <h3>Pontos de Status</h3>
+            <div class="chips">
+              <span class="chip">FOR</span><span class="chip">DES</span><span class="chip">CON</span><span class="chip">INT</span>
+              <span class="chip">SAB</span><span class="chip">CAR</span><span class="chip">ADP</span><span class="chip">RES</span>
+            </div>
+          </div>
+
+          <div class="statsGrid">
+            <div class="stat"><label>FOR</label><input type="number" id="st_for" value="0" min="0" max="999"></div>
+            <div class="stat"><label>DES</label><input type="number" id="st_des" value="0" min="0" max="999"></div>
+            <div class="stat"><label>CON</label><input type="number" id="st_con" value="0" min="0" max="999"></div>
+            <div class="stat"><label>INT</label><input type="number" id="st_int" value="0" min="0" max="999"></div>
+            <div class="stat"><label>SAB</label><input type="number" id="st_sab" value="0" min="0" max="999"></div>
+            <div class="stat"><label>CAR</label><input type="number" id="st_car" value="0" min="0" max="999"></div>
+            <div class="stat"><label>ADP</label><input type="number" id="st_adp" value="0" min="0" max="999"></div>
+            <div class="stat"><label>RES</label><input type="number" id="st_res" value="0" min="0" max="999"></div>
+          </div>
+
+          <div class="sectionTitle">
+            <h3>Campos do Personagem</h3>
+            <div class="chips"><span class="chip">editável</span></div>
+          </div>
+
+          <div class="statsGrid twoCols">
+            <div class="stat"><label>Idade</label><input id="in_idade" placeholder="ex: 19"></div>
+            <div class="stat"><label>Altura</label><input id="in_altura" placeholder="ex: 1,78m"></div>
+            <div class="stat"><label>Raça</label><input id="in_raca" placeholder="ex: Humano"></div>
+            <div class="stat"><label>Classe</label><input id="in_classe" placeholder="ex: Feiticeiro"></div>
+
+            <div class="stat"><label>Nv</label><input type="number" id="in_nv" value="1" min="1" max="999"></div>
+            <div class="stat"><label>XP</label><input type="number" id="in_xp" value="0" min="0" max="999999"></div>
+            <div class="stat"><label>HP</label><input type="number" id="in_hp" value="10" min="0" max="999999"></div>
+            <div class="stat"><label>PM</label><input type="number" id="in_pm" value="5" min="0" max="999999"></div>
+            <div class="stat"><label>CA</label><input type="number" id="in_ca" value="10" min="0" max="999999"></div>
+            <div class="stat"><label>PI</label><input type="number" id="in_pi" value="0" min="0" max="999999"></div>
+          </div>
+        </div>
+
+        <div class="right">
+          <div class="sectionTitle">
+            <h3>Status</h3>
+            <div class="chips"><span class="chip">reativo</span></div>
+          </div>
+
+          <div class="radarWrap">
+            <canvas id="radar" width="440" height="440" aria-label="Gráfico radar dos status"></canvas>
+
+            <div class="smallNote">
+              O radar escala automaticamente pelo maior status (mínimo 10).
+            </div>
+
+            <div class="sectionTitle" style="margin-top:6px;">
+              <h3>Runas (%)</h3>
+              <div class="chips"><span class="chip">digitável</span><span class="chip">slider</span></div>
+            </div>
+
+            <div class="runeControls">
+              <div class="runeRow">
+                <b>Físico</b>
+                <input type="range" id="r_phys" min="0" max="100" value="70" />
+                <input class="num" type="number" id="n_phys" min="0" max="100" value="70" />
+              </div>
+              <div class="runeRow">
+                <b>Arcanismo</b>
+                <input type="range" id="r_arc" min="0" max="100" value="55" />
+                <input class="num" type="number" id="n_arc" min="0" max="100" value="55" />
+              </div>
+              <div class="runeRow">
+                <b>Espiritualidade</b>
+                <input type="range" id="r_spi" min="0" max="100" value="80" />
+                <input class="num" type="number" id="n_spi" min="0" max="100" value="80" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footerLine">
+        <div class="glyphMarquee glyphMarquee--footer" aria-hidden="true">
+          <div class="track" id="glyphBottomTrack"></div>
+        </div>
+        <span>RPG do Raupp</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>
