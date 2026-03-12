@@ -5,36 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b0b0b" />
   <title>Cartão RPG</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css" />
 </head>
-
 <body>
-  <main class="wrap" role="main">
-    <header class="toolbar toolbar--mini" role="region" aria-label="Ações do cartão">
-      <div class="group" role="group" aria-label="Controles">
-        <label class="btnLike" for="inpPhoto" role="button" tabindex="0"
-               aria-controls="inpPhoto" aria-label="Adicionar foto do personagem">
-          Adicionar foto
-        </label>
+  <main class="app" role="main">
+    <header class="toolbar" role="region" aria-label="Ações do cartão">
+      <div class="toolbar__group" role="group" aria-label="Controles principais">
+        <label class="btn btn--label" for="inpPhoto">Adicionar foto</label>
+        <input id="inpPhoto" type="file" accept="image/*" hidden />
 
-        <input id="inpPhoto" type="file" accept="image/*" hidden
-               aria-label="Selecionar foto do personagem" />
+        <button id="btnRemovePhoto" type="button">Remover foto</button>
 
-        <button id="btnRemovePhoto" type="button" aria-label="Remover foto do personagem">
-          Remover foto
-        </button>
+        <button id="btnExport" type="button">Exportar JSON</button>
 
-        <button id="btnFlip" type="button" aria-controls="cardPages" aria-label="Virar cartão (frente/verso)">
-          Virar cartão
-        </button>
+        <label class="btn btn--label" for="inpImport">Importar JSON</label>
+        <input id="inpImport" type="file" accept="application/json,.json" hidden />
 
-        <button id="btnReset" type="button" aria-label="Resetar todos os campos">
-          Reset
-        </button>
-
-        <button id="btnPrint" type="button" aria-label="Imprimir ou salvar em PDF">
-          Imprimir / Salvar PDF
-        </button>
+        <button id="btnReset" type="button">Reset</button>
+        <button id="btnPrint" type="button">Imprimir / PDF</button>
       </div>
     </header>
 
@@ -44,20 +32,28 @@
       <div class="orn br" aria-hidden="true"></div>
       <div class="orn bl" aria-hidden="true"></div>
 
-      <div class="cardPages" id="cardPages">
-        <!-- ================= FRONT ================= -->
-        <section class="page front" id="pageFront" aria-label="Frente do cartão">
-          <div class="grid">
-            <header class="header" aria-label="Cabeçalho do personagem">
+      <div class="card__tabs" role="tablist" aria-label="Seções do cartão">
+        <button id="tabSummary" class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panelSummary" data-tab="summary">
+          Resumo
+        </button>
+        <button id="tabNotes" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panelNotes" data-tab="notes">
+          Notas
+        </button>
+      </div>
+
+      <div class="card__body">
+        <section id="panelSummary" class="panel is-active" role="tabpanel" aria-labelledby="tabSummary" data-panel="summary">
+          <div class="pageGrid">
+            <header class="headerCard" aria-label="Cabeçalho do personagem">
               <div class="titleBlock">
                 <div class="glyphMarquee" aria-hidden="true">
                   <div class="track" id="glyphTopTrack"></div>
                 </div>
 
-                <div class="nameRow">
+                <div class="nameBlock">
                   <input class="bigNameInput"
                          id="inpName"
-                         placeholder="Nome (ex: sei lá)"
+                         placeholder="Nome do personagem"
                          autocomplete="off"
                          autocapitalize="characters"
                          autocorrect="off"
@@ -66,7 +62,7 @@
 
                   <input class="guildInput"
                          id="inpGuild"
-                         placeholder="Guilda (ex: Fênix Prateada)"
+                         placeholder="Guilda / facção"
                          autocomplete="off"
                          autocapitalize="words"
                          autocorrect="off"
@@ -75,51 +71,52 @@
 
                   <span class="saveBadge" id="saveState" role="status" aria-live="polite">salvo</span>
                 </div>
+
+                <div class="quickBar" aria-label="Status rápidos">
+                  <div class="quickItem"><span>Nv</span><strong id="outNv">1</strong></div>
+                  <div class="quickItem"><span>XP</span><strong id="outXp">0</strong></div>
+                  <div class="quickItem"><span>HP</span><strong id="outHp">10/10</strong></div>
+                  <div class="quickItem"><span>PM</span><strong id="outPm">5</strong></div>
+                  <div class="quickItem"><span>CA</span><strong id="outCa">10</strong></div>
+                  <div class="quickItem"><span>PI</span><strong id="outPi">0</strong></div>
+                </div>
               </div>
 
-              <div class="headerRight">
+              <div class="headerSide">
                 <figure class="portrait" aria-label="Retrato do personagem">
-                  <div class="portraitFrame" data-mode="body">
+                  <div class="portraitFrame">
                     <img id="charPhoto" alt="Foto do personagem" decoding="async" />
                     <div class="portraitPlaceholder" id="photoPlaceholder" aria-hidden="true">SEM FOTO</div>
                   </div>
-                  <figcaption class="portraitHint" id="photoHint">
-                    A foto fica salva no navegador (local)
-                  </figcaption>
+                  <figcaption class="portraitHint" id="photoHint">A foto fica salva localmente no aparelho.</figcaption>
                 </figure>
 
-                <div class="meta">
-                  <section class="metaBox" aria-label="Status geral">
-                    <h4>Status</h4>
-                    <div class="kv">
-                      <div><b>Nv</b>: <span id="outNv">1</span></div>
-                      <div><b>XP</b>: <span id="outXp">0</span></div>
-                      <div><b>HP</b>: <span id="outHp">0/0</span></div>
-                      <div><b>PM</b>: <span id="outPm">5</span></div>
-                      <div><b>CA</b>: <span id="outCa">10</span></div>
-                      <div><b>PI</b>: <span id="outPi">0</span></div>
-                    </div>
-                  </section>
-
+                <div class="metaGrid">
                   <section class="metaBox" aria-label="Ficha rápida">
-                    <h4>Ficha rápida</h4>
-                    <div class="kv">
-                      <div><b>Idade</b>: <span id="outIdade">?</span></div>
-                      <div><b>Altura</b>: <span id="outAltura">?</span></div>
-                      <div><b>Raça</b>: <span id="outRaca">?</span></div>
-                      <div><b>Classe</b>: <span id="outClasse">?</span></div>
+                    <h3>Ficha rápida</h3>
+                    <div class="metaList">
+                      <div><b>Idade</b><span id="outIdade">?</span></div>
+                      <div><b>Altura</b><span id="outAltura">?</span></div>
+                      <div><b>Raça</b><span id="outRaca">?</span></div>
+                      <div><b>Classe</b><span id="outClasse">?</span></div>
                     </div>
                   </section>
                 </div>
               </div>
             </header>
 
-            <section class="left" aria-label="Atributos e campos editáveis">
+            <section class="mainColumn" aria-label="Atributos e campos editáveis">
               <div class="sectionTitle">
-                <h3>Pontos de Status</h3>
+                <h2>Pontos de status</h2>
                 <div class="chips" aria-hidden="true">
-                  <span class="chip">FOR</span><span class="chip">DES</span><span class="chip">CON</span><span class="chip">INT</span>
-                  <span class="chip">SAB</span><span class="chip">CAR</span><span class="chip">ADP</span><span class="chip">RES</span>
+                  <span class="chip">FOR</span>
+                  <span class="chip">DES</span>
+                  <span class="chip">CON</span>
+                  <span class="chip">INT</span>
+                  <span class="chip">SAB</span>
+                  <span class="chip">CAR</span>
+                  <span class="chip">ADP</span>
+                  <span class="chip">RES</span>
                 </div>
               </div>
 
@@ -135,142 +132,122 @@
               </div>
 
               <div class="sectionTitle">
-                <h3>Campos do Personagem</h3>
-                <div class="chips"><span class="chip" aria-hidden="true">editável</span></div>
+                <h2>Campos do personagem</h2>
+                <div class="chips"><span class="chip">editável</span></div>
               </div>
 
-              <div class="statsGrid twoCols" aria-label="Campos do personagem">
-                <div class="stat"><label for="in_idade">Idade</label><input id="in_idade" inputmode="numeric" placeholder="ex: 19"></div>
-                <div class="stat"><label for="in_altura">Altura</label><input id="in_altura" inputmode="text" placeholder="ex: 1,78m" autocorrect="off" spellcheck="false"></div>
-                <div class="stat"><label for="in_raca">Raça</label><input id="in_raca" inputmode="text" placeholder="ex: Humano" autocapitalize="words" spellcheck="false"></div>
-                <div class="stat"><label for="in_classe">Classe</label><input id="in_classe" inputmode="text" placeholder="ex: Feiticeiro" autocapitalize="words" spellcheck="false"></div>
-
-                <div class="stat"><label for="in_nv">Nv</label><input inputmode="numeric" step="1" type="number" id="in_nv" value="1" min="1" max="999"></div>
+              <div class="formGrid" aria-label="Campos do personagem">
+                <div class="stat"><label for="in_idade">Idade</label><input id="in_idade" inputmode="numeric" placeholder="Ex: 19"></div>
+                <div class="stat"><label for="in_altura">Altura</label><input id="in_altura" inputmode="text" placeholder="Ex: 1,78m" autocorrect="off" spellcheck="false"></div>
+                <div class="stat"><label for="in_raca">Raça</label><input id="in_raca" inputmode="text" placeholder="Ex: Humano" autocapitalize="words" spellcheck="false"></div>
+                <div class="stat"><label for="in_classe">Classe</label><input id="in_classe" inputmode="text" placeholder="Ex: Feiticeiro" autocapitalize="words" spellcheck="false"></div>
+                <div class="stat"><label for="in_nv">Nível</label><input inputmode="numeric" step="1" type="number" id="in_nv" value="1" min="1" max="999"></div>
                 <div class="stat"><label for="in_xp">XP</label><input inputmode="numeric" step="1" type="number" id="in_xp" value="0" min="0" max="999999"></div>
-
-                <div class="stat"><label for="in_hp_cur">HP (atual)</label><input inputmode="numeric" step="1" type="number" id="in_hp_cur" value="10" min="0" max="999999"></div>
-                <div class="stat"><label for="in_hp_max">HP (total)</label><input inputmode="numeric" step="1" type="number" id="in_hp_max" value="10" min="0" max="999999"></div>
-
+                <div class="stat"><label for="in_hp_cur">HP atual</label><input inputmode="numeric" step="1" type="number" id="in_hp_cur" value="10" min="0" max="999999"></div>
+                <div class="stat"><label for="in_hp_max">HP total</label><input inputmode="numeric" step="1" type="number" id="in_hp_max" value="10" min="0" max="999999"></div>
                 <div class="stat"><label for="in_pm">PM</label><input inputmode="numeric" step="1" type="number" id="in_pm" value="5" min="0" max="999999"></div>
                 <div class="stat"><label for="in_ca">CA</label><input inputmode="numeric" step="1" type="number" id="in_ca" value="10" min="0" max="999999"></div>
                 <div class="stat"><label for="in_pi">PI</label><input inputmode="numeric" step="1" type="number" id="in_pi" value="0" min="0" max="999999"></div>
               </div>
             </section>
 
-            <section class="right" aria-label="Radar e runas">
+            <aside class="sideColumn" aria-label="Radar e runas">
               <div class="sectionTitle">
-                <h3>Status</h3>
-                <div class="chips"><span class="chip" aria-hidden="true">reativo</span></div>
+                <h2>Status</h2>
+                <div class="chips"><span class="chip">reativo</span></div>
               </div>
 
               <div class="radarWrap">
                 <canvas id="radar" aria-label="Gráfico radar dos status"></canvas>
+                <div class="smallNote">O radar escala automaticamente pelo maior status, com mínimo 10.</div>
+              </div>
 
-                <div class="smallNote">
-                  O radar escala automaticamente pelo maior status (mínimo 10).
-                </div>
-
-                <div class="sectionTitle" style="margin-top:6px;">
-                  <h3>Runas (%)</h3>
-                  <div class="chips" aria-hidden="true">
-                    <span class="chip">digitável</span><span class="chip">slider</span>
-                  </div>
-                </div>
-
-                <div class="runeControls" aria-label="Controles de runas">
-                  <div class="runeRow">
-                    <b>Físico</b>
-                    <input type="range" id="r_phys" min="0" max="100" value="70" />
-                    <input class="num" type="number" id="n_phys" min="0" max="100" value="70" inputmode="numeric" step="1" />
-                  </div>
-                  <div class="runeRow">
-                    <b>Arcanismo</b>
-                    <input type="range" id="r_arc" min="0" max="100" value="55" />
-                    <input class="num" type="number" id="n_arc" min="0" max="100" value="55" inputmode="numeric" step="1" />
-                  </div>
-                  <div class="runeRow">
-                    <b>Espiritualidade</b>
-                    <input type="range" id="r_spi" min="0" max="100" value="80" />
-                    <input class="num" type="number" id="n_spi" min="0" max="100" value="80" inputmode="numeric" step="1" />
-                  </div>
+              <div class="sectionTitle">
+                <h2>Runas (%)</h2>
+                <div class="chips">
+                  <span class="chip">slider</span>
+                  <span class="chip">digitável</span>
                 </div>
               </div>
-            </section>
-          </div>
 
-          <footer class="footerLine" aria-label="Rodapé do cartão">
-            <div class="glyphMarquee glyphMarquee--footer" aria-hidden="true">
-              <div class="track" id="glyphBottomTrack"></div>
-            </div>
-            <span>RPG do Raupp</span>
-          </footer>
+              <div class="runeControls" aria-label="Controles de runas">
+                <div class="runeRow">
+                  <label for="r_phys">Físico</label>
+                  <input type="range" id="r_phys" min="0" max="100" value="70" />
+                  <input class="num" type="number" id="n_phys" min="0" max="100" value="70" inputmode="numeric" step="1" />
+                </div>
+                <div class="runeRow">
+                  <label for="r_arc">Arcanismo</label>
+                  <input type="range" id="r_arc" min="0" max="100" value="55" />
+                  <input class="num" type="number" id="n_arc" min="0" max="100" value="55" inputmode="numeric" step="1" />
+                </div>
+                <div class="runeRow">
+                  <label for="r_spi">Espiritualidade</label>
+                  <input type="range" id="r_spi" min="0" max="100" value="80" />
+                  <input class="num" type="number" id="n_spi" min="0" max="100" value="80" inputmode="numeric" step="1" />
+                </div>
+              </div>
+            </aside>
+          </div>
         </section>
 
-        <section class="page back" id="pageBack" aria-label="Verso do cartão">
-          <div class="grid gridBack">
-            <header class="header">
-              <div class="titleBlock">
-                <div class="glyphMarquee" aria-hidden="true">
-                  <div class="track" id="glyphTopTrackBack"></div>
-                </div>
-                <div class="nameRow">
-                  <div class="backTitle">VERSO — ANOTAÇÕES</div>
-                  <div class="saveBadge" id="saveStateBack" role="status" aria-live="polite">salvo</div>
-                </div>
+        <section id="panelNotes" class="panel" role="tabpanel" aria-labelledby="tabNotes" data-panel="notes" hidden>
+          <div class="notesPage">
+            <div class="notesHead">
+              <div class="glyphMarquee" aria-hidden="true">
+                <div class="track" id="glyphTopTrackBack"></div>
               </div>
-            </header>
+              <div class="notesHead__row">
+                <div class="backTitle">Anotações</div>
+                <span class="saveBadge" id="saveStateBack" role="status" aria-live="polite">salvo</span>
+              </div>
+            </div>
 
-            <section class="left backLeft" aria-label="Notas gerais e inventário">
-              <div class="sectionTitle">
-                <h3>Notas gerais</h3>
-                <div class="chips"><span class="chip" aria-hidden="true">editável</span></div>
-              </div>
-              <div class="stat">
-                <label for="note_story">História / objetivos</label>
+            <div class="accordionList">
+              <details class="noteCard" open>
+                <summary>História / objetivos</summary>
+                <label class="srOnly" for="note_story">História / objetivos</label>
                 <textarea id="note_story" class="noteArea" placeholder="Anotações..." autocorrect="off" spellcheck="false"></textarea>
-              </div>
+              </details>
 
-              <div class="sectionTitle">
-                <h3>Inventário</h3>
-              </div>
-              <div class="stat">
-                <label for="note_inv">Itens / ouro / recursos</label>
+              <details class="noteCard" open>
+                <summary>Inventário</summary>
+                <label class="srOnly" for="note_inv">Inventário</label>
                 <textarea id="note_inv" class="noteArea" placeholder="Ex: 25 ouro, poção x2, corda..." autocorrect="off" spellcheck="false"></textarea>
-              </div>
-            </section>
+              </details>
 
-            <section class="right backRight" aria-label="Habilidades e NPCs">
-              <div class="sectionTitle">
-                <h3>Habilidades / Magias</h3>
-              </div>
-              <div class="stat">
-                <label for="note_skills">Lista rápida</label>
+              <details class="noteCard" open>
+                <summary>Habilidades / magias</summary>
+                <label class="srOnly" for="note_skills">Habilidades / magias</label>
                 <textarea id="note_skills" class="noteArea" placeholder="Ex: Bola de fogo, Cura, Ataque rápido..." autocorrect="off" spellcheck="false"></textarea>
-              </div>
+              </details>
 
-              <div class="sectionTitle">
-                <h3>NPCs / Pistas</h3>
-              </div>
-              <div class="stat">
-                <label for="note_npcs">Contatos / informações</label>
+              <details class="noteCard" open>
+                <summary>NPCs / pistas</summary>
+                <label class="srOnly" for="note_npcs">NPCs / pistas</label>
                 <textarea id="note_npcs" class="noteArea" placeholder="Ex: Taverneiro viu alguém..." autocorrect="off" spellcheck="false"></textarea>
-              </div>
-            </section>
+              </details>
+            </div>
           </div>
-
-          <footer class="footerLine" aria-label="Rodapé do verso">
-            <span>Verso do cartão</span>
-            <span class="miniHint">Dica: “Virar cartão” para voltar</span>
-          </footer>
         </section>
       </div>
+
+      <footer class="footerLine" aria-label="Rodapé do cartão">
+        <div class="glyphMarquee glyphMarquee--footer" aria-hidden="true">
+          <div class="track" id="glyphBottomTrack"></div>
+        </div>
+        <span>Cartão RPG</span>
+        <span class="miniHint">Responsivo • offline • backup em JSON</span>
+      </footer>
     </section>
 
     <noscript>
-      <p style="color:#fff; padding:12px;">Este cartão precisa de JavaScript habilitado para funcionar.</p>
+      <p class="noScript">Este cartão precisa de JavaScript habilitado para funcionar.</p>
     </noscript>
   </main>
 
+  <script src="./racas.js" defer></script>
+  <script src="./calculos-personagem.js" defer></script>
   <script src="./script.js" defer></script>
 </body>
 </html>
