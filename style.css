@@ -786,3 +786,175 @@ input[type="range"] {
     border-top: 1px solid rgba(42,34,26,.2);
   }
 }
+
+.stat--status {
+  position: relative;
+}
+
+.modBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(42,34,26,.18);
+  background: rgba(42,34,26,.08);
+  color: rgba(42,34,26,.92);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.stat input[readonly] {
+  background: rgba(42,34,26,.08);
+  color: rgba(42,34,26,.88);
+  cursor: default;
+}
+
+.formGrid--derived .stat,
+.formGrid--attacks .stat {
+  background: rgba(255,255,255,.08);
+}
+
+.runeTier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(42,34,26,.18);
+  background: rgba(42,34,26,.06);
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(42,34,26,.9);
+  white-space: nowrap;
+}
+
+.runeRow .runeTier {
+  justify-self: start;
+}
+
+.levelUpModal[hidden] {
+  display: none !important;
+}
+
+.levelUpModal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.levelUpModal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .58);
+  backdrop-filter: blur(4px);
+}
+
+.levelUpModal__dialog {
+  position: relative;
+  width: min(100%, 620px);
+  max-height: min(92dvh, 820px);
+  overflow: auto;
+  border-radius: 18px;
+  border: 2px solid rgba(181,154,112,.92);
+  background:
+    linear-gradient(0deg, rgba(0,0,0,.08), rgba(0,0,0,0)),
+    linear-gradient(90deg, var(--paper), var(--paper-2));
+  box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.levelUpModal__head h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.levelUpModal__head p {
+  margin: 0;
+  color: rgba(42,34,26,.85);
+  line-height: 1.45;
+}
+
+.levelUpModal__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpStat {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(42,34,26,.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,.16);
+}
+
+.levelUpStat span {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: rgba(42,34,26,.74);
+}
+
+.levelUpStat strong {
+  font-size: 20px;
+}
+
+.levelUpPbToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(42,34,26,.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,.12);
+  font-weight: 700;
+}
+
+.levelUpChecklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.levelUpChecklist label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid rgba(42,34,26,.18);
+  border-radius: 12px;
+  background: rgba(255,255,255,.12);
+  font-weight: 800;
+}
+
+.levelUpChecklist input[type="checkbox"] {
+  min-height: auto;
+  width: 18px;
+  height: 18px;
+}
+
+.levelUpModal__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+  .levelUpModal__stats,
+  .levelUpChecklist {
+    grid-template-columns: 1fr;
+  }
+}

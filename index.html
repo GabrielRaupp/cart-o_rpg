@@ -15,7 +15,6 @@
         <input id="inpPhoto" type="file" accept="image/*" hidden />
 
         <button id="btnRemovePhoto" type="button">Remover foto</button>
-
         <button id="btnExport" type="button">Exportar JSON</button>
 
         <label class="btn btn--label" for="inpImport">Importar JSON</label>
@@ -33,16 +32,38 @@
       <div class="orn bl" aria-hidden="true"></div>
 
       <div class="card__tabs" role="tablist" aria-label="Seções do cartão">
-        <button id="tabSummary" class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="panelSummary" data-tab="summary">
+        <button
+          id="tabSummary"
+          class="tab is-active"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panelSummary"
+          data-tab="summary"
+        >
           Resumo
         </button>
-        <button id="tabNotes" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panelNotes" data-tab="notes">
+        <button
+          id="tabNotes"
+          class="tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panelNotes"
+          data-tab="notes"
+        >
           Notas
         </button>
       </div>
 
       <div class="card__body">
-        <section id="panelSummary" class="panel is-active" role="tabpanel" aria-labelledby="tabSummary" data-panel="summary">
+        <section
+          id="panelSummary"
+          class="panel is-active"
+          role="tabpanel"
+          aria-labelledby="tabSummary"
+          data-panel="summary"
+        >
           <div class="pageGrid">
             <header class="headerCard" aria-label="Cabeçalho do personagem">
               <div class="titleBlock">
@@ -51,23 +72,27 @@
                 </div>
 
                 <div class="nameBlock">
-                  <input class="bigNameInput"
-                         id="inpName"
-                         placeholder="Nome do personagem"
-                         autocomplete="off"
-                         autocapitalize="characters"
-                         autocorrect="off"
-                         spellcheck="false"
-                         enterkeyhint="next" />
+                  <input
+                    class="bigNameInput"
+                    id="inpName"
+                    placeholder="Nome do personagem"
+                    autocomplete="off"
+                    autocapitalize="characters"
+                    autocorrect="off"
+                    spellcheck="false"
+                    enterkeyhint="next"
+                  />
 
-                  <input class="guildInput"
-                         id="inpGuild"
-                         placeholder="Guilda / facção"
-                         autocomplete="off"
-                         autocapitalize="words"
-                         autocorrect="off"
-                         spellcheck="false"
-                         enterkeyhint="done" />
+                  <input
+                    class="guildInput"
+                    id="inpGuild"
+                    placeholder="Guilda / facção"
+                    autocomplete="off"
+                    autocapitalize="words"
+                    autocorrect="off"
+                    spellcheck="false"
+                    enterkeyhint="done"
+                  />
 
                   <span class="saveBadge" id="saveState" role="status" aria-live="polite">salvo</span>
                 </div>
@@ -76,9 +101,12 @@
                   <div class="quickItem"><span>Nv</span><strong id="outNv">1</strong></div>
                   <div class="quickItem"><span>XP</span><strong id="outXp">0</strong></div>
                   <div class="quickItem"><span>HP</span><strong id="outHp">10/10</strong></div>
-                  <div class="quickItem"><span>PM</span><strong id="outPm">5</strong></div>
+                  <div class="quickItem"><span>PM</span><strong id="outPm">0/0</strong></div>
+                  <div class="quickItem"><span>HPP</span><strong id="outHpp">0/0</strong></div>
                   <div class="quickItem"><span>CA</span><strong id="outCa">10</strong></div>
                   <div class="quickItem"><span>PI</span><strong id="outPi">0</strong></div>
+                  <div class="quickItem"><span>PB</span><strong id="outPb">0</strong></div>
+                  <div class="quickItem"><span>Arma</span><strong id="outWeapon">0</strong></div>
                 </div>
               </div>
 
@@ -88,7 +116,9 @@
                     <img id="charPhoto" alt="Foto do personagem" decoding="async" />
                     <div class="portraitPlaceholder" id="photoPlaceholder" aria-hidden="true">SEM FOTO</div>
                   </div>
-                  <figcaption class="portraitHint" id="photoHint">A foto fica salva localmente no aparelho.</figcaption>
+                  <figcaption class="portraitHint" id="photoHint">
+                    A foto fica salva localmente no aparelho.
+                  </figcaption>
                 </figure>
 
                 <div class="metaGrid">
@@ -101,53 +131,234 @@
                       <div><b>Classe</b><span id="outClasse">?</span></div>
                     </div>
                   </section>
+
+                  <section class="metaBox" aria-label="Resumo de XP">
+                    <h3>XP</h3>
+                    <div class="metaList">
+                      <div><b>Próximo nível</b><span id="outXpNext">—</span></div>
+                      <div><b>Falta</b><span id="outXpLeft">—</span></div>
+                    </div>
+                  </section>
                 </div>
               </div>
             </header>
 
             <section class="mainColumn" aria-label="Atributos e campos editáveis">
               <div class="sectionTitle">
-                <h2>Pontos de status</h2>
+                <h2>Status</h2>
                 <div class="chips" aria-hidden="true">
-                  <span class="chip">FOR</span>
-                  <span class="chip">DES</span>
-                  <span class="chip">CON</span>
-                  <span class="chip">INT</span>
-                  <span class="chip">SAB</span>
-                  <span class="chip">CAR</span>
-                  <span class="chip">ADP</span>
-                  <span class="chip">RES</span>
+                  <span class="chip">mods visíveis</span>
+                  <span class="chip">histórico</span>
                 </div>
               </div>
 
               <div class="statsGrid statsGrid--status" aria-label="Status do personagem">
-                <div class="stat"><label for="st_for">FOR</label><input inputmode="numeric" step="1" type="number" id="st_for" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_des">DES</label><input inputmode="numeric" step="1" type="number" id="st_des" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_con">CON</label><input inputmode="numeric" step="1" type="number" id="st_con" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_int">INT</label><input inputmode="numeric" step="1" type="number" id="st_int" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_sab">SAB</label><input inputmode="numeric" step="1" type="number" id="st_sab" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_car">CAR</label><input inputmode="numeric" step="1" type="number" id="st_car" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_adp">ADP</label><input inputmode="numeric" step="1" type="number" id="st_adp" value="0" min="0" max="999"></div>
-                <div class="stat"><label for="st_res">RES</label><input inputmode="numeric" step="1" type="number" id="st_res" value="0" min="0" max="999"></div>
+                <div class="stat stat--status">
+                  <label for="st_for">FOR</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_for" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_for">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_des">DES</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_des" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_des">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_con">CON</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_con" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_con">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_int">INT</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_int" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_int">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_sab">SAB</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_sab" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_sab">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_car">CAR</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_car" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_car">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_adp">ADP</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_adp" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_adp">+0</small>
+                </div>
+
+                <div class="stat stat--status">
+                  <label for="st_res">RES</label>
+                  <input inputmode="numeric" step="1" type="number" id="st_res" placeholder="0" max="999" />
+                  <small class="modBadge" id="mod_res">+0</small>
+                </div>
               </div>
 
               <div class="sectionTitle">
-                <h2>Campos do personagem</h2>
-                <div class="chips"><span class="chip">editável</span></div>
+                <h2>Campos editáveis</h2>
+                <div class="chips">
+                  <span class="chip">resumo</span>
+                </div>
               </div>
 
               <div class="formGrid" aria-label="Campos do personagem">
-                <div class="stat"><label for="in_idade">Idade</label><input id="in_idade" inputmode="numeric" placeholder="Ex: 19"></div>
-                <div class="stat"><label for="in_altura">Altura</label><input id="in_altura" inputmode="text" placeholder="Ex: 1,78m" autocorrect="off" spellcheck="false"></div>
-                <div class="stat"><label for="in_raca">Raça</label><input id="in_raca" inputmode="text" placeholder="Ex: Humano" autocapitalize="words" spellcheck="false"></div>
-                <div class="stat"><label for="in_classe">Classe</label><input id="in_classe" inputmode="text" placeholder="Ex: Feiticeiro" autocapitalize="words" spellcheck="false"></div>
-                <div class="stat"><label for="in_nv">Nível</label><input inputmode="numeric" step="1" type="number" id="in_nv" value="1" min="1" max="999"></div>
-                <div class="stat"><label for="in_xp">XP</label><input inputmode="numeric" step="1" type="number" id="in_xp" value="0" min="0" max="999999"></div>
-                <div class="stat"><label for="in_hp_cur">HP atual</label><input inputmode="numeric" step="1" type="number" id="in_hp_cur" value="10" min="0" max="999999"></div>
-                <div class="stat"><label for="in_hp_max">HP total</label><input inputmode="numeric" step="1" type="number" id="in_hp_max" value="10" min="0" max="999999"></div>
-                <div class="stat"><label for="in_pm">PM</label><input inputmode="numeric" step="1" type="number" id="in_pm" value="5" min="0" max="999999"></div>
-                <div class="stat"><label for="in_ca">CA</label><input inputmode="numeric" step="1" type="number" id="in_ca" value="10" min="0" max="999999"></div>
-                <div class="stat"><label for="in_pi">PI</label><input inputmode="numeric" step="1" type="number" id="in_pi" value="0" min="0" max="999999"></div>
+                <div class="stat">
+                  <label for="in_idade">Idade</label>
+                  <input id="in_idade" inputmode="numeric" placeholder="Ex: 19" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_altura">Altura</label>
+                  <input
+                    id="in_altura"
+                    inputmode="text"
+                    placeholder="Ex: 1,78m"
+                    autocorrect="off"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <div class="stat">
+                  <label for="in_raca">Raça</label>
+                  <input
+                    id="in_raca"
+                    list="raceList"
+                    inputmode="text"
+                    placeholder="Ex: Humano"
+                    autocapitalize="words"
+                    spellcheck="false"
+                  />
+                  <datalist id="raceList"></datalist>
+                </div>
+
+                <div class="stat">
+                  <label for="in_classe">Classe</label>
+                  <input
+                    id="in_classe"
+                    inputmode="text"
+                    placeholder="Ex: Feiticeiro"
+                    autocapitalize="words"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <div class="stat">
+                  <label for="in_nv">Nível</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_nv" placeholder="1" max="60" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_xp">XP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_xp" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_hp_cur">HP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_hp_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_pm_cur">PM atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_pm_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_hpp_cur">HPP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_hpp_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_pi">PI</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_pi" placeholder="0" max="10" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_weapon_level">Nível da arma</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_weapon_level" placeholder="0" max="20" />
+                </div>
+              </div>
+
+              <div class="sectionTitle">
+                <h2>Cálculos automáticos</h2>
+                <div class="chips">
+                  <span class="chip">somente leitura</span>
+                </div>
+              </div>
+
+              <div class="formGrid formGrid--derived" aria-label="Campos calculados">
+                <div class="stat">
+                  <label for="in_hp_max">HP total</label>
+                  <input id="in_hp_max" type="text" readonly value="10" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_pm_max">PM total</label>
+                  <input id="in_pm_max" type="text" readonly value="0" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_hpp_max">HPP total</label>
+                  <input id="in_hpp_max" type="text" readonly value="0" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_ca">CA</label>
+                  <input id="in_ca" type="text" readonly value="10" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_xp_next">XP próximo nível</label>
+                  <input id="in_xp_next" type="text" readonly value="—" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_xp_left">XP que falta</label>
+                  <input id="in_xp_left" type="text" readonly value="—" />
+                </div>
+              </div>
+
+              <div class="sectionTitle">
+                <h2>Acerto</h2>
+                <div class="chips">
+                  <span class="chip">físico</span>
+                  <span class="chip">mágico</span>
+                  <span class="chip">encantado</span>
+                </div>
+              </div>
+
+              <div class="formGrid formGrid--attacks" aria-label="Cálculo de acerto">
+                <div class="stat">
+                  <label for="hit_magic">Mágico</label>
+                  <input id="hit_magic" type="text" readonly value="+0" />
+                </div>
+
+                <div class="stat">
+                  <label for="hit_phys_for">Físico FOR</label>
+                  <input id="hit_phys_for" type="text" readonly value="+0" />
+                </div>
+
+                <div class="stat">
+                  <label for="hit_phys_des">Físico DES</label>
+                  <input id="hit_phys_des" type="text" readonly value="+0" />
+                </div>
+
+                <div class="stat">
+                  <label for="hit_ench_for">Encantado FOR</label>
+                  <input id="hit_ench_for" type="text" readonly value="+0" />
+                </div>
+
+                <div class="stat">
+                  <label for="hit_ench_des">Encantado DES</label>
+                  <input id="hit_ench_des" type="text" readonly value="+0" />
+                </div>
               </div>
             </section>
 
@@ -159,14 +370,16 @@
 
               <div class="radarWrap">
                 <canvas id="radar" aria-label="Gráfico radar dos status"></canvas>
-                <div class="smallNote">O radar escala automaticamente pelo maior status, com mínimo 10.</div>
+                <div class="smallNote">
+                  O radar escala automaticamente pelo maior status, com mínimo 10.
+                </div>
               </div>
 
               <div class="sectionTitle">
                 <h2>Runas (%)</h2>
                 <div class="chips">
                   <span class="chip">slider</span>
-                  <span class="chip">digitável</span>
+                  <span class="chip">tier</span>
                 </div>
               </div>
 
@@ -175,23 +388,35 @@
                   <label for="r_phys">Físico</label>
                   <input type="range" id="r_phys" min="0" max="100" value="70" />
                   <input class="num" type="number" id="n_phys" min="0" max="100" value="70" inputmode="numeric" step="1" />
+                  <span class="runeTier" id="tier_phys">Boa + passiva</span>
                 </div>
+
                 <div class="runeRow">
                   <label for="r_arc">Arcanismo</label>
                   <input type="range" id="r_arc" min="0" max="100" value="55" />
                   <input class="num" type="number" id="n_arc" min="0" max="100" value="55" inputmode="numeric" step="1" />
+                  <span class="runeTier" id="tier_arc">Habilidade nerfada</span>
                 </div>
+
                 <div class="runeRow">
                   <label for="r_spi">Espiritualidade</label>
                   <input type="range" id="r_spi" min="0" max="100" value="80" />
                   <input class="num" type="number" id="n_spi" min="0" max="100" value="80" inputmode="numeric" step="1" />
+                  <span class="runeTier" id="tier_spi">Boa + passiva</span>
                 </div>
               </div>
             </aside>
           </div>
         </section>
 
-        <section id="panelNotes" class="panel" role="tabpanel" aria-labelledby="tabNotes" data-panel="notes" hidden>
+        <section
+          id="panelNotes"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tabNotes"
+          data-panel="notes"
+          hidden
+        >
           <div class="notesPage">
             <div class="notesHead">
               <div class="glyphMarquee" aria-hidden="true">
@@ -207,25 +432,49 @@
               <details class="noteCard" open>
                 <summary>História / objetivos</summary>
                 <label class="srOnly" for="note_story">História / objetivos</label>
-                <textarea id="note_story" class="noteArea" placeholder="Anotações..." autocorrect="off" spellcheck="false"></textarea>
+                <textarea
+                  id="note_story"
+                  class="noteArea"
+                  placeholder="Anotações..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
               </details>
 
               <details class="noteCard" open>
                 <summary>Inventário</summary>
                 <label class="srOnly" for="note_inv">Inventário</label>
-                <textarea id="note_inv" class="noteArea" placeholder="Ex: 25 ouro, poção x2, corda..." autocorrect="off" spellcheck="false"></textarea>
+                <textarea
+                  id="note_inv"
+                  class="noteArea"
+                  placeholder="Ex: 25 ouro, poção x2, corda..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
               </details>
 
               <details class="noteCard" open>
                 <summary>Habilidades / magias</summary>
                 <label class="srOnly" for="note_skills">Habilidades / magias</label>
-                <textarea id="note_skills" class="noteArea" placeholder="Ex: Bola de fogo, Cura, Ataque rápido..." autocorrect="off" spellcheck="false"></textarea>
+                <textarea
+                  id="note_skills"
+                  class="noteArea"
+                  placeholder="Ex: Bola de fogo, Cura, Ataque rápido..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
               </details>
 
               <details class="noteCard" open>
                 <summary>NPCs / pistas</summary>
                 <label class="srOnly" for="note_npcs">NPCs / pistas</label>
-                <textarea id="note_npcs" class="noteArea" placeholder="Ex: Taverneiro viu alguém..." autocorrect="off" spellcheck="false"></textarea>
+                <textarea
+                  id="note_npcs"
+                  class="noteArea"
+                  placeholder="Ex: Taverneiro viu alguém..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
               </details>
             </div>
           </div>
@@ -240,6 +489,63 @@
         <span class="miniHint">Responsivo • offline • backup em JSON</span>
       </footer>
     </section>
+
+    <div id="levelUpModal" class="levelUpModal" hidden>
+      <div class="levelUpModal__backdrop"></div>
+
+      <div
+        class="levelUpModal__dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="levelUpTitle"
+        aria-describedby="levelUpDesc"
+      >
+        <div class="levelUpModal__head">
+          <h2 id="levelUpTitle">Subiu de nível</h2>
+          <p id="levelUpDesc">
+            Escolha até <b>2 status</b> para aumentar em <b>+1</b>.
+            Você também pode gastar <b>1 PB</b> para pegar <b>+1 escolha extra</b>.
+          </p>
+        </div>
+
+        <div class="levelUpModal__stats">
+          <div class="levelUpStat">
+            <span>Pontos de level disponíveis</span>
+            <strong id="lvlPointsLeft">0</strong>
+          </div>
+
+          <div class="levelUpStat">
+            <span>PB disponíveis</span>
+            <strong id="lvlPbLeft">0</strong>
+          </div>
+
+          <div class="levelUpStat">
+            <span>Selecionados agora</span>
+            <strong id="lvlSelectedCount">0</strong>
+          </div>
+        </div>
+
+        <label class="levelUpPbToggle">
+          <input type="checkbox" id="lvlUsePb" />
+          Gastar 1 PB para selecionar +1 status
+        </label>
+
+        <div class="levelUpChecklist" id="levelUpChecklist">
+          <label><input type="checkbox" value="for" /> FOR</label>
+          <label><input type="checkbox" value="des" /> DES</label>
+          <label><input type="checkbox" value="con" /> CON</label>
+          <label><input type="checkbox" value="int" /> INT</label>
+          <label><input type="checkbox" value="sab" /> SAB</label>
+          <label><input type="checkbox" value="car" /> CAR</label>
+          <label><input type="checkbox" value="adp" /> ADP</label>
+          <label><input type="checkbox" value="res" /> RES</label>
+        </div>
+
+        <div class="levelUpModal__actions">
+          <button type="button" id="btnApplyLevelUp">Aplicar</button>
+        </div>
+      </div>
+    </div>
 
     <noscript>
       <p class="noScript">Este cartão precisa de JavaScript habilitado para funcionar.</p>

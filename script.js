@@ -1,54 +1,131 @@
 const $ = (id) => document.getElementById(id);
-const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-const STORAGE_KEY = "rpg_card_v5_state";
-const PHOTO_DB_NAME = "rpg_card_v5_db";
+const STORAGE_KEY = "rpg_card_v7_state";
+const PHOTO_DB_NAME = "rpg_card_v6_db";
 const PHOTO_STORE = "assets";
 const PHOTO_KEY = "character_photo";
+
 const SAVE_DELAY = 180;
 const STATUS_KEYS = ["for", "des", "con", "int", "sab", "car", "adp", "res"];
 const STATUS_LABELS = ["FOR", "DES", "CON", "INT", "SAB", "CAR", "ADP", "RES"];
 
-const fieldMap = [
-  { id: "in_nv", out: "outNv", fallback: "1" },
-  { id: "in_xp", out: "outXp", fallback: "0" },
-  { id: "in_pm", out: "outPm", fallback: "5" },
-  { id: "in_ca", out: "outCa", fallback: "10" },
-  { id: "in_pi", out: "outPi", fallback: "0" },
-  { id: "in_idade", out: "outIdade", fallback: "?" },
-  { id: "in_altura", out: "outAltura", fallback: "?" },
-  { id: "in_raca", out: "outRaca", fallback: "?" },
-  { id: "in_classe", out: "outClasse", fallback: "?" },
+const EDITABLE_FIELD_IDS = [
+  "in_idade",
+  "in_altura",
+  "in_raca",
+  "in_classe",
+  "in_nv",
+  "in_xp",
+  "in_hp_cur",
+  "in_pm_cur",
+  "in_hpp_cur",
+  "in_pi",
+  "in_weapon_level",
 ];
 
 const defaults = {
+  v: 7,
   name: "",
   guild: "",
   activeTab: "summary",
   glyphTop: "",
   glyphBottom: "",
   fields: {
-    in_idade: "",
-    in_altura: "",
-    in_raca: "",
-    in_classe: "",
-    in_nv: "1",
-    in_xp: "0",
-    in_pm: "5",
-    in_ca: "10",
-    in_pi: "0",
+    idade: "",
+    altura: "",
+    raca: "",
+    classe: "",
+    nv: "1",
+    xp: "0",
+    hpCur: "",
+    pmCur: "",
+    hppCur: "",
+    pi: "",
+    weaponLevel: "",
   },
-  hp: { cur: 10, max: 10 },
-  stats: { for: "0", des: "0", con: "0", int: "0", sab: "0", car: "0", adp: "0", res: "0" },
-  runes: { phys: 70, arc: 55, spi: 80 },
-  notes: { story: "", inv: "", skills: "", npcs: "" },
+  stats: {
+    for: "",
+    des: "",
+    con: "",
+    int: "",
+    sab: "",
+    car: "",
+    adp: "",
+    res: "",
+  },
+  progression: {
+    conModsByLevel: [0],
+    intModsByLevel: [0],
+    resModsByLevel: [0],
+  },
+  leveling: {
+    pendingLevelPoints: 0,
+    pendingPb: 0,
+    lastProcessedLevel: 1,
+  },
+  runes: {
+    phys: 70,
+    arc: 55,
+    spi: 80,
+  },
+  notes: {
+    story: "",
+    inv: "",
+    skills: "",
+    npcs: "",
+  },
 };
+
+function clonePlain(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function toInt(value, fallback = 0) {
+  if (value == null || value === "") return fallback;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatSigned(value) {
+  const n = toInt(value, 0);
+  return n >= 0 ? `+${n}` : String(n);
+}
+
+function hasCalcModules() {
+  return Boolean(
+    window.RaceDB &&
+    typeof window.RaceDB.findRace === "function" &&
+    window.CharacterCalc &&
+    typeof window.CharacterCalc.calculate === "function"
+  );
+}
 
 const inpName = $("inpName");
 const inpGuild = $("inpGuild");
+
 const inHpCur = $("in_hp_cur");
-const inHpMax = $("in_hp_max");
+const inPmCur = $("in_pm_cur");
+const inHppCur = $("in_hpp_cur");
+
+const outNv = $("outNv");
+const outXp = $("outXp");
 const outHp = $("outHp");
+const outPm = $("outPm");
+const outHpp = $("outHpp");
+const outCa = $("outCa");
+const outPi = $("outPi");
+const outPb = $("outPb");
+const outWeapon = $("outWeapon");
+const outIdade = $("outIdade");
+const outAltura = $("outAltura");
+const outRaca = $("outRaca");
+const outClasse = $("outClasse");
+const outXpNext = $("outXpNext");
+const outXpLeft = $("outXpLeft");
 
 const inpPhoto = $("inpPhoto");
 const btnRemovePhoto = $("btnRemovePhoto");
@@ -71,6 +148,15 @@ const canvas = $("radar");
 const ctx = canvas ? canvas.getContext("2d") : null;
 const radarWrap = canvas?.closest(".radarWrap") || null;
 const radarTip = document.createElement("div");
+
+const levelUpModal = $("levelUpModal");
+const lvlUsePb = $("lvlUsePb");
+const lvlPointsLeft = $("lvlPointsLeft");
+const lvlPbLeft = $("lvlPbLeft");
+const lvlSelectedCount = $("lvlSelectedCount");
+const btnApplyLevelUp = $("btnApplyLevelUp");
+const levelUpChecklist = $("levelUpChecklist");
+
 radarTip.id = "radarTip";
 radarTip.className = "radarTip";
 radarTip.hidden = true;
@@ -80,28 +166,27 @@ let photoDataUrl = "";
 let saveTimer = 0;
 let resizeRaf = 0;
 let radarCssSize = 0;
+let radarScheduled = false;
 let photoDbPromise = null;
-
-function hasCalcModules() {
-  return Boolean(
-    window.RaceDB &&
-    typeof window.RaceDB.findRace === "function" &&
-    window.CharacterCalc &&
-    typeof window.CharacterCalc.calculate === "function"
-  );
-}
+let progressionState = clonePlain(defaults.progression);
+let levelingState = clonePlain(defaults.leveling);
+let previousDerivedSnapshot = null;
+let shouldAutoRaiseResources = false;
+let suppressLevelUpPopup = false;
 
 function openPhotoDb() {
   if (photoDbPromise) return photoDbPromise;
 
   photoDbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(PHOTO_DB_NAME, 1);
+
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(PHOTO_STORE)) {
         db.createObjectStore(PHOTO_STORE);
       }
     };
+
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error || new Error("Falha ao abrir IndexedDB"));
   });
@@ -111,6 +196,7 @@ function openPhotoDb() {
 
 async function savePhotoToDb(dataUrl) {
   const db = await openPhotoDb();
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readwrite");
     tx.objectStore(PHOTO_STORE).put(dataUrl, PHOTO_KEY);
@@ -121,9 +207,11 @@ async function savePhotoToDb(dataUrl) {
 
 async function getPhotoFromDb() {
   const db = await openPhotoDb();
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readonly");
     const req = tx.objectStore(PHOTO_STORE).get(PHOTO_KEY);
+
     req.onsuccess = () => resolve(typeof req.result === "string" ? req.result : "");
     req.onerror = () => reject(req.error || new Error("Falha ao carregar foto"));
   });
@@ -131,6 +219,7 @@ async function getPhotoFromDb() {
 
 async function clearPhotoFromDb() {
   const db = await openPhotoDb();
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readwrite");
     tx.objectStore(PHOTO_STORE).delete(PHOTO_KEY);
@@ -142,10 +231,12 @@ async function clearPhotoFromDb() {
 function randomGlyphLine(len = 80) {
   const chars = "⟊⟟⟒⟐⟄⟅⟆⟇⟍⟔⟟⟡⟠⟣⟤⟥⟦⟧⟨⟩⟪⫫⌁⌂⌇⌎⌑⌘⌬⌲⌶⍁⍂⍃⍄⍅⍆⍇";
   let s = "";
+
   for (let i = 0; i < len; i++) {
     s += chars[Math.floor(Math.random() * chars.length)];
     if (i % 6 === 5) s += " ";
   }
+
   return s.trim();
 }
 
@@ -157,9 +248,11 @@ function setMarquee(trackEl, text) {
 function regenGlyphs() {
   const top = randomGlyphLine(96);
   const bottom = randomGlyphLine(110);
+
   setMarquee($("glyphTopTrack"), top);
   setMarquee($("glyphTopTrackBack"), top);
   setMarquee($("glyphBottomTrack"), bottom);
+
   return { top, bottom };
 }
 
@@ -184,21 +277,16 @@ function showSaveError() {
   setSaveState("erro ao salvar");
 }
 
-function syncHpOutput() {
-  const cur = clamp(parseInt(inHpCur?.value || "0", 10) || 0, 0, 999999);
-  const max = clamp(parseInt(inHpMax?.value || "0", 10) || 0, 0, 999999);
-  if (outHp) outHp.textContent = `${cur}/${max}`;
+function getCurrentLevel() {
+  const raw = $("in_nv")?.value;
+  if (raw == null || raw === "") return 1;
+  return clamp(toInt(raw, 1), 1, 60);
 }
 
-function syncMappedOutputs() {
-  for (const { id, out, fallback } of fieldMap) {
-    const input = $(id);
-    const output = $(out);
-    if (!input || !output) continue;
-    const value = typeof input.value === "string" ? input.value.trim() : "";
-    output.textContent = value || fallback;
-  }
-  syncHpOutput();
+function getCurrentWeaponLevel() {
+  const raw = $("in_weapon_level")?.value;
+  if (raw == null || raw === "") return 0;
+  return clamp(toInt(raw, 0), 0, 20);
 }
 
 function getCurrentStatsObject() {
@@ -209,40 +297,358 @@ function getCurrentStatsObject() {
   return stats;
 }
 
-function applyDerivedStats() {
-  syncMappedOutputs();
-
+function getCurrentMods(stats = getCurrentStatsObject()) {
   if (!hasCalcModules()) {
-    return;
+    return { for: 0, des: 0, con: 0, int: 0, sab: 0, car: 0, adp: 0, res: 0 };
   }
-
-  const raceInputValue = $("in_raca")?.value || "";
-  const race = window.RaceDB.findRace(raceInputValue);
-
-  if (!race) {
-    return;
-  }
-
-  const derived = window.CharacterCalc.calculate({
-    level: $("in_nv")?.value || "1",
-    stats: getCurrentStatsObject(),
-    race,
-  });
-
-  if (inHpMax) inHpMax.value = String(derived.hpMax);
-  if ($("in_pm")) $("in_pm").value = String(derived.pm);
-  if ($("in_ca")) $("in_ca").value = String(derived.ca);
-
-  const currentHp = clamp(parseInt(inHpCur?.value || "0", 10) || 0, 0, 999999);
-  if (inHpCur && (!inHpCur.value || currentHp > derived.hpMax)) {
-    inHpCur.value = String(derived.hpMax);
-  }
-
-  syncMappedOutputs();
+  return window.CharacterCalc.getModifiers(stats);
 }
 
-function getStatusValues() {
-  return STATUS_KEYS.map((k) => clamp(parseFloat($("st_" + k)?.value || "0") || 0, 0, 999));
+function normalizeProgressionState(level, mods, rawProgression) {
+  const safeLevel = Math.max(1, toInt(level, 1));
+  const input = rawProgression && typeof rawProgression === "object" ? rawProgression : {};
+  const next = {
+    conModsByLevel: Array.isArray(input.conModsByLevel) ? [...input.conModsByLevel] : [],
+    intModsByLevel: Array.isArray(input.intModsByLevel) ? [...input.intModsByLevel] : [],
+    resModsByLevel: Array.isArray(input.resModsByLevel) ? [...input.resModsByLevel] : [],
+  };
+
+  const mapping = [
+    ["conModsByLevel", mods.con],
+    ["intModsByLevel", mods.int],
+    ["resModsByLevel", mods.res],
+  ];
+
+  for (const [key, currentMod] of mapping) {
+    const arr = next[key].map((n) => toInt(n, currentMod));
+
+    if (arr.length > safeLevel) {
+      arr.length = safeLevel;
+    }
+
+    while (arr.length < safeLevel) {
+      arr.push(arr.length ? arr[arr.length - 1] : currentMod);
+    }
+
+    arr[safeLevel - 1] = currentMod;
+    next[key] = arr;
+  }
+
+  return next;
+}
+
+function fillRaceList() {
+  const list = $("raceList");
+  if (!list || !window.RaceDB?.listNames) return;
+
+  list.innerHTML = "";
+
+  for (const raceName of window.RaceDB.listNames()) {
+    const option = document.createElement("option");
+    option.value = raceName;
+    list.appendChild(option);
+  }
+}
+
+function setReadOnlyValue(id, value) {
+  const el = $(id);
+  if (el) el.value = String(value);
+}
+
+function sanitizeCurrentResources(derived, previousDerived = null, autoRaise = false) {
+  if (!derived) return;
+
+  let hpCur = toInt(inHpCur?.value, derived.hpMax);
+  let pmCur = toInt(inPmCur?.value, derived.pmMax);
+  let hppCur = toInt(inHppCur?.value, derived.hppMax);
+
+  if (autoRaise && previousDerived) {
+    hpCur += Math.max(0, derived.hpMax - previousDerived.hpMax);
+    pmCur += Math.max(0, derived.pmMax - previousDerived.pmMax);
+    hppCur += Math.max(0, derived.hppMax - previousDerived.hppMax);
+  }
+
+  hpCur = clamp(hpCur, 0, derived.hpMax);
+  pmCur = clamp(pmCur, 0, derived.pmMax);
+  hppCur = clamp(hppCur, 0, derived.hppMax);
+
+  if (inHpCur) inHpCur.value = String(hpCur);
+  if (inPmCur) inPmCur.value = String(pmCur);
+  if (inHppCur) inHppCur.value = String(hppCur);
+}
+
+function syncStatMods(mods) {
+  for (const key of STATUS_KEYS) {
+    const badge = $("mod_" + key);
+    if (!badge) continue;
+    badge.textContent = formatSigned(mods[key] ?? 0);
+  }
+}
+
+function syncRuneTiers() {
+  if (!window.CharacterCalc?.getRuneTier) return;
+
+  const pairs = [
+    ["tier_phys", rPhys?.value],
+    ["tier_arc", rArc?.value],
+    ["tier_spi", rSpi?.value],
+  ];
+
+  for (const [id, value] of pairs) {
+    const el = $(id);
+    if (el) el.textContent = window.CharacterCalc.getRuneTier(value);
+  }
+}
+
+function syncSummaryOutputs({ race, derived, xpInfo }) {
+  const level = xpInfo?.level ?? getCurrentLevel();
+  const xp = xpInfo?.current ?? Math.max(0, toInt($("in_xp")?.value, 0));
+  const hpCur = Math.max(0, toInt(inHpCur?.value, 0));
+  const pmCur = Math.max(0, toInt(inPmCur?.value, 0));
+  const hppCur = Math.max(0, toInt(inHppCur?.value, 0));
+  const pi = clamp(toInt($("in_pi")?.value, 0), 0, 10);
+  const weaponLevel = getCurrentWeaponLevel();
+
+  if (outNv) outNv.textContent = String(level);
+  if (outXp) outXp.textContent = String(xp);
+  if (outPi) outPi.textContent = String(pi);
+  if (outPb) outPb.textContent = String(levelingState.pendingPb || 0);
+  if (outWeapon) outWeapon.textContent = String(weaponLevel);
+
+  if (outIdade) outIdade.textContent = $("in_idade")?.value.trim() || "?";
+  if (outAltura) outAltura.textContent = $("in_altura")?.value.trim() || "?";
+  if (outRaca) outRaca.textContent = race?.name || $("in_raca")?.value.trim() || "?";
+  if (outClasse) outClasse.textContent = $("in_classe")?.value.trim() || "?";
+
+  if (derived) {
+    if (outHp) outHp.textContent = `${hpCur}/${derived.hpMax}`;
+    if (outPm) outPm.textContent = `${pmCur}/${derived.pmMax}`;
+    if (outHpp) outHpp.textContent = `${hppCur}/${derived.hppMax}`;
+    if (outCa) outCa.textContent = String(derived.ca);
+  } else {
+    if (outHp) outHp.textContent = `${hpCur}/?`;
+    if (outPm) outPm.textContent = `${pmCur}/?`;
+    if (outHpp) outHpp.textContent = `${hppCur}/?`;
+    if (outCa) outCa.textContent = "?";
+  }
+
+  if (outXpNext) outXpNext.textContent = xpInfo?.total == null ? "—" : String(xpInfo.total);
+  if (outXpLeft) outXpLeft.textContent = xpInfo?.remaining == null ? "—" : String(xpInfo.remaining);
+}
+
+function getSelectedLevelUpKeys() {
+  if (!levelUpChecklist) return [];
+  return [...levelUpChecklist.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+}
+
+function getLevelUpSelectionLimit() {
+  const freeLimit = Math.min(2, Math.max(0, levelingState.pendingLevelPoints || 0));
+  const pbExtra = lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0 ? 1 : 0;
+  return freeLimit + pbExtra;
+}
+
+function refreshLevelUpModal() {
+  if (!levelUpModal || !levelUpChecklist) return;
+
+  const selected = getSelectedLevelUpKeys();
+  const limit = getLevelUpSelectionLimit();
+
+  if (lvlPointsLeft) lvlPointsLeft.textContent = String(levelingState.pendingLevelPoints || 0);
+  if (lvlPbLeft) lvlPbLeft.textContent = String(levelingState.pendingPb || 0);
+  if (lvlSelectedCount) lvlSelectedCount.textContent = `${selected.length}/${limit}`;
+
+  if (lvlUsePb) {
+    lvlUsePb.disabled = (levelingState.pendingPb || 0) <= 0;
+    if (lvlUsePb.disabled) lvlUsePb.checked = false;
+  }
+
+  const inputs = [...levelUpChecklist.querySelectorAll('input[type="checkbox"]')];
+
+  if (selected.length > limit) {
+    const checked = inputs.filter((input) => input.checked);
+    const last = checked[checked.length - 1];
+    if (last) last.checked = false;
+  }
+
+  const finalSelected = getSelectedLevelUpKeys();
+  const finalLimit = getLevelUpSelectionLimit();
+
+  inputs.forEach((input) => {
+    input.disabled = !input.checked && finalSelected.length >= finalLimit;
+  });
+
+  if (btnApplyLevelUp) {
+    btnApplyLevelUp.disabled = finalSelected.length === 0 || finalSelected.length > finalLimit || finalLimit <= 0;
+  }
+}
+
+function clearLevelUpChecks() {
+  if (!levelUpChecklist) return;
+  levelUpChecklist.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = false;
+    input.disabled = false;
+  });
+  if (lvlUsePb) lvlUsePb.checked = false;
+}
+
+function openLevelUpModalIfNeeded() {
+  if (!levelUpModal || !levelUpChecklist) return;
+  if ((levelingState.pendingLevelPoints || 0) <= 0) return;
+
+  clearLevelUpChecks();
+  refreshLevelUpModal();
+  levelUpModal.hidden = false;
+  document.body.style.overflow = "hidden";
+}
+
+function closeLevelUpModal() {
+  if (!levelUpModal) return;
+  levelUpModal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+function applyLevelUpSelections() {
+  const selected = getSelectedLevelUpKeys();
+  const freeLimit = Math.min(2, Math.max(0, levelingState.pendingLevelPoints || 0));
+  const wantsPb = Boolean(lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0);
+  const maxSelectable = freeLimit + (wantsPb ? 1 : 0);
+
+  if (!selected.length) return;
+  if (selected.length > maxSelectable) return;
+
+  const freeSpent = Math.min(selected.length, freeLimit);
+  const pbSpent = selected.length > freeSpent ? 1 : 0;
+
+  if (freeSpent > (levelingState.pendingLevelPoints || 0)) return;
+  if (pbSpent > (levelingState.pendingPb || 0)) return;
+
+  selected.forEach((key) => {
+    const input = $("st_" + key);
+    if (!input) return;
+    const nextValue = toInt(input.value, 0) + 1;
+    input.value = String(nextValue);
+  });
+
+  levelingState.pendingLevelPoints = Math.max(0, (levelingState.pendingLevelPoints || 0) - freeSpent);
+  levelingState.pendingPb = Math.max(0, (levelingState.pendingPb || 0) - pbSpent);
+
+  shouldAutoRaiseResources = true;
+  closeLevelUpModal();
+  applyDerivedStats();
+  saveAll();
+
+  if ((levelingState.pendingLevelPoints || 0) > 0) {
+    openLevelUpModalIfNeeded();
+  }
+}
+
+function processLevelUps(level) {
+  const currentLevel = Math.max(1, toInt(level, 1));
+  const lastLevel = Math.max(1, toInt(levelingState.lastProcessedLevel, 1));
+
+  if (currentLevel > lastLevel) {
+    const gained = currentLevel - lastLevel;
+    levelingState.pendingLevelPoints = toInt(levelingState.pendingLevelPoints, 0) + (gained * 2);
+    levelingState.pendingPb = toInt(levelingState.pendingPb, 0) + gained;
+    levelingState.lastProcessedLevel = currentLevel;
+    shouldAutoRaiseResources = true;
+
+    if (!suppressLevelUpPopup) {
+      setTimeout(openLevelUpModalIfNeeded, 0);
+    }
+  } else if (currentLevel < lastLevel) {
+    levelingState.lastProcessedLevel = currentLevel;
+  }
+}
+
+function applyDerivedStats() {
+  const stats = getCurrentStatsObject();
+  const mods = getCurrentMods(stats);
+
+  let level = getCurrentLevel();
+  let xp = Math.max(0, toInt($("in_xp")?.value, 0));
+  const weaponLevel = getCurrentWeaponLevel();
+
+  if (window.CharacterCalc?.normalizeLevelAndXp) {
+    const normalized = window.CharacterCalc.normalizeLevelAndXp({
+      level,
+      xp,
+    });
+
+    level = clamp(toInt(normalized.level, level), 1, 60);
+    xp = Math.max(0, toInt(normalized.xp, xp));
+
+    if ($("in_nv")) $("in_nv").value = String(level);
+    if ($("in_xp")) $("in_xp").value = String(xp);
+  }
+
+  processLevelUps(level);
+
+  syncStatMods(mods);
+  syncRuneTiers();
+
+  let race = null;
+  let derived = null;
+  let xpInfo = {
+    level,
+    current: xp,
+    total: null,
+    remaining: null,
+    percent: null,
+  };
+
+  if (hasCalcModules()) {
+    const raceInputValue = $("in_raca")?.value || "";
+    race = window.RaceDB.findRace(raceInputValue);
+
+    progressionState = normalizeProgressionState(level, mods, progressionState);
+
+    derived = window.CharacterCalc.calculate({
+      level,
+      stats,
+      race: race || { name: raceInputValue.trim(), hpBase: 10, pmBase: 0 },
+      progression: progressionState,
+      weapon: { level: weaponLevel },
+    });
+
+    sanitizeCurrentResources(derived, previousDerivedSnapshot, shouldAutoRaiseResources);
+    shouldAutoRaiseResources = false;
+
+    setReadOnlyValue("in_hp_max", derived.hpMax);
+    setReadOnlyValue("in_pm_max", derived.pmMax);
+    setReadOnlyValue("in_hpp_max", derived.hppMax);
+    setReadOnlyValue("in_ca", derived.ca);
+
+    setReadOnlyValue("hit_magic", formatSigned(derived.attackBonuses.magic));
+    setReadOnlyValue("hit_phys_for", formatSigned(derived.attackBonuses.physicalFor));
+    setReadOnlyValue("hit_phys_des", formatSigned(derived.attackBonuses.physicalDes));
+    setReadOnlyValue("hit_ench_for", formatSigned(derived.attackBonuses.enchantedFor));
+    setReadOnlyValue("hit_ench_des", formatSigned(derived.attackBonuses.enchantedDes));
+
+    xpInfo = window.CharacterCalc.getXpProgress({
+      level,
+      xp,
+    });
+
+    if ($("in_nv")) $("in_nv").value = String(xpInfo.level ?? level);
+    if ($("in_xp")) $("in_xp").value = String(xpInfo.current ?? xp);
+
+    setReadOnlyValue("in_xp_next", xpInfo.total == null ? "—" : xpInfo.total);
+    setReadOnlyValue("in_xp_left", xpInfo.remaining == null ? "—" : xpInfo.remaining);
+  }
+
+  previousDerivedSnapshot = derived
+    ? {
+        level: derived.level,
+        hpMax: derived.hpMax,
+        pmMax: derived.pmMax,
+        hppMax: derived.hppMax,
+      }
+    : null;
+
+  syncSummaryOutputs({ race, derived, xpInfo });
+  refreshLevelUpModal();
+  queueRadarDraw();
 }
 
 function setPhoto(dataUrl) {
@@ -289,10 +695,12 @@ async function compressImageDataUrl(dataUrl, maxSide = 900, quality = 0.84) {
   const c = document.createElement("canvas");
   c.width = nw;
   c.height = nh;
+
   const cctx = c.getContext("2d");
   cctx.imageSmoothingEnabled = true;
   cctx.imageSmoothingQuality = "high";
   cctx.drawImage(img, 0, 0, nw, nh);
+
   return c.toDataURL("image/jpeg", quality);
 }
 
@@ -313,36 +721,37 @@ function setActiveTab(tab) {
 }
 
 function collectState() {
-  const fields = {};
-  for (const { id } of fieldMap) {
-    const el = $(id);
-    fields[id] = el ? el.value : "";
-  }
-
-  const stats = {};
-  for (const key of STATUS_KEYS) {
-    const el = $("st_" + key);
-    stats[key] = el ? el.value : "0";
-  }
-
   return {
-    v: 5,
+    v: 7,
     name: inpName?.value || "",
     guild: inpGuild?.value || "",
     activeTab: document.querySelector(".tab.is-active")?.dataset.tab || "summary",
     glyphTop: $("glyphTopTrack")?.textContent || "",
     glyphBottom: $("glyphBottomTrack")?.textContent || "",
     photoStored: Boolean(photoDataUrl),
-    fields,
-    hp: {
-      cur: clamp(parseInt(inHpCur?.value || "0", 10) || 0, 0, 999999),
-      max: clamp(parseInt(inHpMax?.value || "0", 10) || 0, 0, 999999),
+    fields: {
+      idade: $("in_idade")?.value || "",
+      altura: $("in_altura")?.value || "",
+      raca: $("in_raca")?.value || "",
+      classe: $("in_classe")?.value || "",
+      nv: $("in_nv")?.value || "1",
+      xp: $("in_xp")?.value || "0",
+      hpCur: $("in_hp_cur")?.value || "",
+      pmCur: $("in_pm_cur")?.value || "",
+      hppCur: $("in_hpp_cur")?.value || "",
+      pi: $("in_pi")?.value || "",
+      weaponLevel: $("in_weapon_level")?.value || "",
     },
-    stats,
+    stats: STATUS_KEYS.reduce((acc, key) => {
+      acc[key] = $("st_" + key)?.value || "";
+      return acc;
+    }, {}),
+    progression: clonePlain(progressionState),
+    leveling: clonePlain(levelingState),
     runes: {
-      phys: clamp(parseInt(rPhys?.value || "0", 10) || 0, 0, 100),
-      arc: clamp(parseInt(rArc?.value || "0", 10) || 0, 0, 100),
-      spi: clamp(parseInt(rSpi?.value || "0", 10) || 0, 0, 100),
+      phys: clamp(toInt(rPhys?.value, 0), 0, 100),
+      arc: clamp(toInt(rArc?.value, 0), 0, 100),
+      spi: clamp(toInt(rSpi?.value, 0), 0, 100),
     },
     notes: {
       story: noteStory?.value || "",
@@ -354,29 +763,31 @@ function collectState() {
 }
 
 function migrateLegacy(state) {
-  if (!state || typeof state !== "object") return structuredClone(defaults);
+  const merged = clonePlain(defaults);
 
-  const merged = structuredClone(defaults);
+  if (!state || typeof state !== "object") {
+    return merged;
+  }
+
   merged.name = state.name ?? merged.name;
   merged.guild = state.guild ?? merged.guild;
   merged.activeTab = state.activeTab === "notes" ? "notes" : "summary";
   merged.glyphTop = state.glyphTop ?? merged.glyphTop;
   merged.glyphBottom = state.glyphBottom ?? merged.glyphBottom;
 
-  if (state.fields && typeof state.fields === "object") {
-    Object.assign(merged.fields, state.fields);
-  }
+  const oldFields = state.fields && typeof state.fields === "object" ? state.fields : {};
 
-  if (state.fields && typeof state.fields.in_hp !== "undefined" && !state.hp) {
-    const hp = clamp(parseInt(state.fields.in_hp || "0", 10) || 0, 0, 999999);
-    merged.hp = { cur: hp, max: hp };
-    delete merged.fields.in_hp;
-  }
-
-  if (state.hp && typeof state.hp === "object") {
-    merged.hp.cur = clamp(parseInt(state.hp.cur ?? merged.hp.cur, 10) || 0, 0, 999999);
-    merged.hp.max = clamp(parseInt(state.hp.max ?? merged.hp.max, 10) || 0, 0, 999999);
-  }
+  merged.fields.idade = oldFields.idade ?? oldFields.in_idade ?? merged.fields.idade;
+  merged.fields.altura = oldFields.altura ?? oldFields.in_altura ?? merged.fields.altura;
+  merged.fields.raca = oldFields.raca ?? oldFields.in_raca ?? merged.fields.raca;
+  merged.fields.classe = oldFields.classe ?? oldFields.in_classe ?? merged.fields.classe;
+  merged.fields.nv = String(oldFields.nv ?? oldFields.in_nv ?? merged.fields.nv);
+  merged.fields.xp = String(oldFields.xp ?? oldFields.in_xp ?? merged.fields.xp);
+  merged.fields.hpCur = String(oldFields.hpCur ?? oldFields.in_hp_cur ?? state.hp?.cur ?? merged.fields.hpCur);
+  merged.fields.pmCur = String(oldFields.pmCur ?? oldFields.in_pm_cur ?? oldFields.in_pm ?? merged.fields.pmCur);
+  merged.fields.hppCur = String(oldFields.hppCur ?? oldFields.in_hpp_cur ?? merged.fields.hppCur);
+  merged.fields.pi = String(oldFields.pi ?? oldFields.in_pi ?? merged.fields.pi);
+  merged.fields.weaponLevel = String(oldFields.weaponLevel ?? oldFields.in_weapon_level ?? merged.fields.weaponLevel);
 
   if (state.stats && typeof state.stats === "object") {
     for (const key of STATUS_KEYS) {
@@ -384,10 +795,33 @@ function migrateLegacy(state) {
     }
   }
 
+  if (state.progression && typeof state.progression === "object") {
+    merged.progression.conModsByLevel = Array.isArray(state.progression.conModsByLevel)
+      ? state.progression.conModsByLevel.map((n) => toInt(n, 0))
+      : merged.progression.conModsByLevel;
+
+    merged.progression.intModsByLevel = Array.isArray(state.progression.intModsByLevel)
+      ? state.progression.intModsByLevel.map((n) => toInt(n, 0))
+      : merged.progression.intModsByLevel;
+
+    merged.progression.resModsByLevel = Array.isArray(state.progression.resModsByLevel)
+      ? state.progression.resModsByLevel.map((n) => toInt(n, 0))
+      : merged.progression.resModsByLevel;
+  }
+
+  const savedLeveling = state.leveling && typeof state.leveling === "object" ? state.leveling : null;
+  const mergedLevel = clamp(toInt(merged.fields.nv, 1), 1, 60);
+
+  merged.leveling.pendingLevelPoints = savedLeveling ? Math.max(0, toInt(savedLeveling.pendingLevelPoints, 0)) : 0;
+  merged.leveling.pendingPb = savedLeveling ? Math.max(0, toInt(savedLeveling.pendingPb, 0)) : 0;
+  merged.leveling.lastProcessedLevel = savedLeveling
+    ? Math.max(1, toInt(savedLeveling.lastProcessedLevel, mergedLevel))
+    : mergedLevel;
+
   if (state.runes && typeof state.runes === "object") {
-    merged.runes.phys = clamp(parseInt(state.runes.phys ?? merged.runes.phys, 10) || 0, 0, 100);
-    merged.runes.arc = clamp(parseInt(state.runes.arc ?? merged.runes.arc, 10) || 0, 0, 100);
-    merged.runes.spi = clamp(parseInt(state.runes.spi ?? merged.runes.spi, 10) || 0, 0, 100);
+    merged.runes.phys = clamp(toInt(state.runes.phys, merged.runes.phys), 0, 100);
+    merged.runes.arc = clamp(toInt(state.runes.arc, merged.runes.arc), 0, 100);
+    merged.runes.spi = clamp(toInt(state.runes.spi, merged.runes.spi), 0, 100);
   }
 
   if (state.notes && typeof state.notes === "object") {
@@ -418,18 +852,25 @@ function applyState(rawState) {
     $("glyphBottomTrack").textContent = state.glyphBottom;
   }
 
-  for (const { id } of fieldMap) {
-    const el = $(id);
-    if (el) el.value = state.fields[id] ?? defaults.fields[id] ?? "";
-  }
-
-  if (inHpCur) inHpCur.value = String(state.hp.cur);
-  if (inHpMax) inHpMax.value = String(state.hp.max);
+  $("in_idade").value = state.fields.idade;
+  $("in_altura").value = state.fields.altura;
+  $("in_raca").value = state.fields.raca;
+  $("in_classe").value = state.fields.classe;
+  $("in_nv").value = state.fields.nv;
+  $("in_xp").value = state.fields.xp;
+  $("in_hp_cur").value = state.fields.hpCur;
+  $("in_pm_cur").value = state.fields.pmCur;
+  $("in_hpp_cur").value = state.fields.hppCur;
+  $("in_pi").value = state.fields.pi;
+  $("in_weapon_level").value = state.fields.weaponLevel;
 
   for (const key of STATUS_KEYS) {
     const el = $("st_" + key);
     if (el) el.value = state.stats[key];
   }
+
+  progressionState = clonePlain(state.progression);
+  levelingState = clonePlain(state.leveling);
 
   syncRunePair(rPhys, nPhys, state.runes.phys);
   syncRunePair(rArc, nArc, state.runes.arc);
@@ -440,7 +881,10 @@ function applyState(rawState) {
   if (noteSkills) noteSkills.value = state.notes.skills;
   if (noteNpcs) noteNpcs.value = state.notes.npcs;
 
+  suppressLevelUpPopup = true;
   applyDerivedStats();
+  suppressLevelUpPopup = false;
+
   setActiveTab(state.activeTab);
   queueRadarDraw();
 }
@@ -474,7 +918,7 @@ function loadAll() {
 
 function syncRunePair(rangeEl, numEl, value) {
   if (!rangeEl || !numEl) return;
-  const v = clamp(parseInt(value || "0", 10) || 0, 0, 100);
+  const v = clamp(toInt(value, 0), 0, 100);
   rangeEl.value = String(v);
   numEl.value = String(v);
 }
@@ -485,14 +929,30 @@ function initRuneSync() {
 
     rangeEl.addEventListener("input", () => {
       syncRunePair(rangeEl, numEl, rangeEl.value);
+      syncRuneTiers();
       saveAll();
     });
 
     numEl.addEventListener("input", () => {
       syncRunePair(rangeEl, numEl, numEl.value);
+      syncRuneTiers();
       saveAll();
     });
   });
+}
+
+function initLevelUpModal() {
+  if (!levelUpModal || !levelUpChecklist) return;
+
+  lvlUsePb?.addEventListener("change", refreshLevelUpModal);
+
+  levelUpChecklist.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.addEventListener("change", refreshLevelUpModal);
+  });
+
+  btnApplyLevelUp?.addEventListener("click", applyLevelUpSelections);
+
+  levelUpModal.querySelector(".levelUpModal__backdrop")?.addEventListener("click", () => {});
 }
 
 function showRadarTip(text, x, y) {
@@ -508,6 +968,7 @@ function hideRadarTip() {
 
 function resizeRadarForDisplay() {
   if (!canvas || !ctx) return null;
+
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const wrapEl = radarWrap || canvas.parentElement;
   if (!wrapEl) return null;
@@ -524,6 +985,7 @@ function resizeRadarForDisplay() {
 
   const cssW = Math.max(240, Math.min(520, Math.floor(usableW)));
   radarCssSize = cssW;
+
   canvas.style.width = `${cssW}px`;
   canvas.style.height = `${cssW}px`;
 
@@ -535,16 +997,19 @@ function resizeRadarForDisplay() {
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
+
   return { w: cssW, h: cssW };
+}
+
+function getStatusValues() {
+  return STATUS_KEYS.map((key) => clamp(parseFloat($("st_" + key)?.value || "0") || 0, 0, 999));
 }
 
 function drawRadar() {
   if (!canvas || !ctx) return;
+
   const size = resizeRadarForDisplay();
-  if (!size) {
-    requestAnimationFrame(drawRadar);
-    return;
-  }
+  if (!size) return;
 
   const { w, h } = size;
   const cx = w / 2;
@@ -603,6 +1068,7 @@ function drawRadar() {
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
+
   ctx.closePath();
   ctx.fillStyle = "rgba(80, 114, 164, .30)";
   ctx.fill();
@@ -616,6 +1082,16 @@ function drawRadar() {
   ctx.fill();
 }
 
+function queueRadarDraw() {
+  if (radarScheduled) return;
+
+  radarScheduled = true;
+  requestAnimationFrame(() => {
+    radarScheduled = false;
+    drawRadar();
+  });
+}
+
 function pickRadarPoint(px, py) {
   const size = Math.max(240, Math.floor(radarCssSize || canvas?.getBoundingClientRect().width || 440));
   const cx = size / 2;
@@ -626,6 +1102,7 @@ function pickRadarPoint(px, py) {
   const hit = 16;
 
   let best = null;
+
   for (let i = 0; i < STATUS_LABELS.length; i++) {
     const ang = -Math.PI / 2 + i * ((2 * Math.PI) / STATUS_LABELS.length);
     const rr = baseRadius * (values[i] / maxV);
@@ -662,15 +1139,6 @@ function onRadarPointer(evt) {
   );
 }
 
-function queueRadarDraw() {
-  requestAnimationFrame(() => {
-    drawRadar();
-    requestAnimationFrame(drawRadar);
-  });
-  setTimeout(drawRadar, 90);
-  setTimeout(drawRadar, 220);
-}
-
 async function exportState() {
   try {
     const payload = collectState();
@@ -687,6 +1155,7 @@ async function exportState() {
     a.href = url;
     a.download = `${safeName || "personagem"}_cartao_rpg.json`;
     a.click();
+
     URL.revokeObjectURL(url);
   } catch (err) {
     console.error(err);
@@ -698,8 +1167,8 @@ async function importStateFile(file) {
   try {
     const text = await file.text();
     const imported = JSON.parse(text);
-    const state = migrateLegacy(imported);
-    applyState(state);
+
+    applyState(imported);
 
     if (typeof imported.photo === "string" && imported.photo) {
       await savePhotoToDb(imported.photo);
@@ -724,42 +1193,25 @@ function bindInputsToSave() {
 
   inpGuild?.addEventListener("input", saveAll);
 
-  for (const { id, out, fallback } of fieldMap) {
+  for (const id of EDITABLE_FIELD_IDS) {
     const input = $(id);
-    const output = $(out);
-    if (!input || !output) continue;
+    if (!input) continue;
 
     input.addEventListener("input", () => {
-      const value = input.value.trim();
-      output.textContent = value || fallback;
-
-      if (id === "in_raca" || id === "in_nv") {
-        applyDerivedStats();
-      } else {
-        syncHpOutput();
-      }
-
+      applyDerivedStats();
       saveAll();
     });
   }
 
-  [inHpCur, inHpMax].forEach((el) => {
-    el?.addEventListener("input", () => {
-      syncHpOutput();
-      saveAll();
-    });
-  });
-
-  STATUS_KEYS.forEach((key) => {
+  for (const key of STATUS_KEYS) {
     const el = $("st_" + key);
-    if (!el) return;
+    if (!el) continue;
 
     el.addEventListener("input", () => {
-      drawRadar();
       applyDerivedStats();
       saveAll();
     });
-  });
+  }
 
   [noteStory, noteInv, noteSkills, noteNpcs].forEach((el) => {
     el?.addEventListener("input", saveAll);
@@ -780,17 +1232,25 @@ function bindInputsToSave() {
 
 function resetForm() {
   localStorage.removeItem(STORAGE_KEY);
+  progressionState = clonePlain(defaults.progression);
+  levelingState = clonePlain(defaults.leveling);
+  previousDerivedSnapshot = null;
+  shouldAutoRaiseResources = false;
 
   if (inpName) inpName.value = defaults.name;
   if (inpGuild) inpGuild.value = defaults.guild;
 
-  for (const { id } of fieldMap) {
-    const el = $(id);
-    if (el) el.value = defaults.fields[id] ?? "";
-  }
-
-  if (inHpCur) inHpCur.value = String(defaults.hp.cur);
-  if (inHpMax) inHpMax.value = String(defaults.hp.max);
+  $("in_idade").value = defaults.fields.idade;
+  $("in_altura").value = defaults.fields.altura;
+  $("in_raca").value = defaults.fields.raca;
+  $("in_classe").value = defaults.fields.classe;
+  $("in_nv").value = defaults.fields.nv;
+  $("in_xp").value = defaults.fields.xp;
+  $("in_hp_cur").value = defaults.fields.hpCur;
+  $("in_pm_cur").value = defaults.fields.pmCur;
+  $("in_hpp_cur").value = defaults.fields.hppCur;
+  $("in_pi").value = defaults.fields.pi;
+  $("in_weapon_level").value = defaults.fields.weaponLevel;
 
   for (const key of STATUS_KEYS) {
     const el = $("st_" + key);
@@ -811,6 +1271,7 @@ function resetForm() {
   clearPhotoFromDb().catch(() => {});
   regenGlyphs();
   syncHeaderStyle();
+  closeLevelUpModal();
   applyDerivedStats();
   queueRadarDraw();
   setSaveState("salvo");
@@ -850,24 +1311,29 @@ async function removePhoto() {
 
 async function init() {
   if (!hasCalcModules()) {
-    console.warn("RaceDB ou CharacterCalc não foram carregados. Verifique a ordem dos scripts no HTML.");
+    console.warn("RaceDB ou CharacterCalc não foram carregados. Verifique a ordem dos scripts.");
   }
 
+  fillRaceList();
   initRuneSync();
+  initLevelUpModal();
   bindInputsToSave();
 
   inpPhoto?.addEventListener("change", handlePhotoChange);
   btnRemovePhoto?.addEventListener("click", removePhoto);
   $("btnExport")?.addEventListener("click", exportState);
+
   $("inpImport")?.addEventListener("change", async (evt) => {
     const file = evt.target.files?.[0];
     evt.target.value = "";
     if (file) await importStateFile(file);
   });
+
   $("btnReset")?.addEventListener("click", resetForm);
   $("btnPrint")?.addEventListener("click", () => window.print());
 
   const loaded = loadAll();
+
   if (loaded) {
     applyState(loaded);
   } else {
@@ -886,15 +1352,22 @@ async function init() {
   queueRadarDraw();
 }
 
-window.addEventListener("load", init, { once: true });
+window.addEventListener("DOMContentLoaded", init, { once: true });
+
 window.addEventListener("resize", () => {
   cancelAnimationFrame(resizeRaf);
   resizeRaf = requestAnimationFrame(drawRadar);
 });
+
 window.addEventListener("pageshow", () => setTimeout(drawRadar, 0));
 window.addEventListener("orientationchange", () => setTimeout(drawRadar, 180));
+
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) queueRadarDraw();
+  if (document.hidden) {
+    persistNow();
+  } else {
+    queueRadarDraw();
+  }
 });
 
 if (window.ResizeObserver && radarWrap) {
