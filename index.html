@@ -503,8 +503,9 @@
         <div class="levelUpModal__head">
           <h2 id="levelUpTitle">Subiu de nível</h2>
           <p id="levelUpDesc">
-            Escolha até <b>2 status</b> para aumentar em <b>+1</b>.
-            Você também pode gastar <b>1 PB</b> para pegar <b>+1 escolha extra</b>.
+            Distribua seus pontos livremente.
+            Você ganha <b>2 pontos por nível</b> e <b>1 PB</b>.
+            Pode colocar os 2 pontos no mesmo status, se quiser.
           </p>
         </div>
 
@@ -520,25 +521,88 @@
           </div>
 
           <div class="levelUpStat">
-            <span>Selecionados agora</span>
+            <span>Total alocado</span>
             <strong id="lvlSelectedCount">0</strong>
           </div>
         </div>
 
         <label class="levelUpPbToggle">
           <input type="checkbox" id="lvlUsePb" />
-          Gastar 1 PB para selecionar +1 status
+          Gastar 1 PB para ganhar +1 ponto extra nesta distribuição
         </label>
 
-        <div class="levelUpChecklist" id="levelUpChecklist">
-          <label><input type="checkbox" value="for" /> FOR</label>
-          <label><input type="checkbox" value="des" /> DES</label>
-          <label><input type="checkbox" value="con" /> CON</label>
-          <label><input type="checkbox" value="int" /> INT</label>
-          <label><input type="checkbox" value="sab" /> SAB</label>
-          <label><input type="checkbox" value="car" /> CAR</label>
-          <label><input type="checkbox" value="adp" /> ADP</label>
-          <label><input type="checkbox" value="res" /> RES</label>
+        <div class="levelUpChecklist levelUpAllocator" id="levelUpChecklist">
+          <div class="levelUpRow" data-stat="for">
+            <span class="levelUpRow__label">FOR</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="for">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_for" data-stat="for" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="for">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="des">
+            <span class="levelUpRow__label">DES</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="des">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_des" data-stat="des" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="des">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="con">
+            <span class="levelUpRow__label">CON</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="con">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_con" data-stat="con" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="con">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="int">
+            <span class="levelUpRow__label">INT</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="int">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_int" data-stat="int" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="int">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="sab">
+            <span class="levelUpRow__label">SAB</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="sab">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_sab" data-stat="sab" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="sab">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="car">
+            <span class="levelUpRow__label">CAR</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="car">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_car" data-stat="car" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="car">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="adp">
+            <span class="levelUpRow__label">ADP</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="adp">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_adp" data-stat="adp" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="adp">+</button>
+            </div>
+          </div>
+
+          <div class="levelUpRow" data-stat="res">
+            <span class="levelUpRow__label">RES</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="res">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_res" data-stat="res" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="res">+</button>
+            </div>
+          </div>
         </div>
 
         <div class="levelUpModal__actions">

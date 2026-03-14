@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 
-const STORAGE_KEY = "rpg_card_v7_state";
+const STORAGE_KEY = "rpg_card_v8_state";
 const PHOTO_DB_NAME = "rpg_card_v6_db";
 const PHOTO_STORE = "assets";
 const PHOTO_KEY = "character_photo";
@@ -24,7 +24,7 @@ const EDITABLE_FIELD_IDS = [
 ];
 
 const defaults = {
-  v: 7,
+  v: 8,
   name: "",
   guild: "",
   activeTab: "summary",
@@ -98,9 +98,9 @@ function formatSigned(value) {
 function hasCalcModules() {
   return Boolean(
     window.RaceDB &&
-    typeof window.RaceDB.findRace === "function" &&
-    window.CharacterCalc &&
-    typeof window.CharacterCalc.calculate === "function"
+      typeof window.RaceDB.findRace === "function" &&
+      window.CharacterCalc &&
+      typeof window.CharacterCalc.calculate === "function"
   );
 }
 
@@ -436,58 +436,91 @@ function syncSummaryOutputs({ race, derived, xpInfo }) {
   if (outXpLeft) outXpLeft.textContent = xpInfo?.remaining == null ? "—" : String(xpInfo.remaining);
 }
 
-function getSelectedLevelUpKeys() {
-  if (!levelUpChecklist) return [];
-  return [...levelUpChecklist.querySelectorAll('input[type="checkbox"]:checked')].map((el) => el.value);
+function getLevelUpPointInput(key) {
+  return $("lvl_" + key);
+}
+
+function getAllocatedLevelUpMap() {
+  const out = {};
+  for (const key of STATUS_KEYS) {
+    out[key] = Math.max(0, toInt(getLevelUpPointInput(key)?.value, 0));
+  }
+  return out;
+}
+
+function getAllocatedLevelUpTotal() {
+  const map = getAllocatedLevelUpMap();
+  return STATUS_KEYS.reduce((acc, key) => acc + map[key], 0);
 }
 
 function getLevelUpSelectionLimit() {
-  const freeLimit = Math.min(2, Math.max(0, levelingState.pendingLevelPoints || 0));
+  const freePoints = Math.max(0, toInt(levelingState.pendingLevelPoints, 0));
   const pbExtra = lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0 ? 1 : 0;
-  return freeLimit + pbExtra;
+  return freePoints + pbExtra;
+}
+
+function setLevelUpPoint(key, value) {
+  const input = getLevelUpPointInput(key);
+  if (!input) return;
+  input.value = String(Math.max(0, toInt(value, 0)));
+}
+
+function changeLevelUpPoint(key, delta) {
+  const current = Math.max(0, toInt(getLevelUpPointInput(key)?.value, 0));
+  const total = getAllocatedLevelUpTotal();
+  const limit = getLevelUpSelectionLimit();
+
+  if (delta > 0) {
+    if (total >= limit) return;
+    setLevelUpPoint(key, current + 1);
+  } else if (delta < 0) {
+    if (current <= 0) return;
+    setLevelUpPoint(key, current - 1);
+  }
+
+  refreshLevelUpModal();
 }
 
 function refreshLevelUpModal() {
   if (!levelUpModal || !levelUpChecklist) return;
 
-  const selected = getSelectedLevelUpKeys();
+  const totalAllocated = getAllocatedLevelUpTotal();
   const limit = getLevelUpSelectionLimit();
 
   if (lvlPointsLeft) lvlPointsLeft.textContent = String(levelingState.pendingLevelPoints || 0);
   if (lvlPbLeft) lvlPbLeft.textContent = String(levelingState.pendingPb || 0);
-  if (lvlSelectedCount) lvlSelectedCount.textContent = `${selected.length}/${limit}`;
+  if (lvlSelectedCount) lvlSelectedCount.textContent = `${totalAllocated}/${limit}`;
 
   if (lvlUsePb) {
     lvlUsePb.disabled = (levelingState.pendingPb || 0) <= 0;
     if (lvlUsePb.disabled) lvlUsePb.checked = false;
   }
 
-  const inputs = [...levelUpChecklist.querySelectorAll('input[type="checkbox"]')];
+  for (const key of STATUS_KEYS) {
+    const input = getLevelUpPointInput(key);
+    const row = levelUpChecklist.querySelector(`[data-stat="${key}"]`);
+    if (!row || !input) continue;
 
-  if (selected.length > limit) {
-    const checked = inputs.filter((input) => input.checked);
-    const last = checked[checked.length - 1];
-    if (last) last.checked = false;
+    const minusBtn = row.querySelector('[data-action="minus"]');
+    const plusBtn = row.querySelector('[data-action="plus"]');
+    const current = Math.max(0, toInt(input.value, 0));
+
+    if (minusBtn) minusBtn.disabled = current <= 0;
+    if (plusBtn) plusBtn.disabled = totalAllocated >= limit;
   }
 
-  const finalSelected = getSelectedLevelUpKeys();
-  const finalLimit = getLevelUpSelectionLimit();
-
-  inputs.forEach((input) => {
-    input.disabled = !input.checked && finalSelected.length >= finalLimit;
-  });
-
   if (btnApplyLevelUp) {
-    btnApplyLevelUp.disabled = finalSelected.length === 0 || finalSelected.length > finalLimit || finalLimit <= 0;
+    btnApplyLevelUp.disabled = totalAllocated <= 0 || totalAllocated > limit;
   }
 }
 
 function clearLevelUpChecks() {
   if (!levelUpChecklist) return;
-  levelUpChecklist.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-    input.checked = false;
-    input.disabled = false;
-  });
+
+  for (const key of STATUS_KEYS) {
+    setLevelUpPoint(key, 0);
+  }
+
   if (lvlUsePb) lvlUsePb.checked = false;
 }
 
@@ -508,29 +541,34 @@ function closeLevelUpModal() {
 }
 
 function applyLevelUpSelections() {
-  const selected = getSelectedLevelUpKeys();
-  const freeLimit = Math.min(2, Math.max(0, levelingState.pendingLevelPoints || 0));
+  const allocated = getAllocatedLevelUpMap();
+  const totalAllocated = STATUS_KEYS.reduce((acc, key) => acc + allocated[key], 0);
+  const freePoints = Math.max(0, toInt(levelingState.pendingLevelPoints, 0));
   const wantsPb = Boolean(lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0);
-  const maxSelectable = freeLimit + (wantsPb ? 1 : 0);
+  const maxAlloc = freePoints + (wantsPb ? 1 : 0);
 
-  if (!selected.length) return;
-  if (selected.length > maxSelectable) return;
+  if (totalAllocated <= 0) return;
+  if (totalAllocated > maxAlloc) return;
 
-  const freeSpent = Math.min(selected.length, freeLimit);
-  const pbSpent = selected.length > freeSpent ? 1 : 0;
+  const freeSpent = Math.min(totalAllocated, freePoints);
+  const pbSpent = totalAllocated > freeSpent ? 1 : 0;
 
-  if (freeSpent > (levelingState.pendingLevelPoints || 0)) return;
+  if (freeSpent > freePoints) return;
   if (pbSpent > (levelingState.pendingPb || 0)) return;
 
-  selected.forEach((key) => {
-    const input = $("st_" + key);
-    if (!input) return;
-    const nextValue = toInt(input.value, 0) + 1;
-    input.value = String(nextValue);
-  });
+  for (const key of STATUS_KEYS) {
+    const add = allocated[key];
+    if (add <= 0) continue;
 
-  levelingState.pendingLevelPoints = Math.max(0, (levelingState.pendingLevelPoints || 0) - freeSpent);
-  levelingState.pendingPb = Math.max(0, (levelingState.pendingPb || 0) - pbSpent);
+    const input = $("st_" + key);
+    if (!input) continue;
+
+    const nextValue = toInt(input.value, 0) + add;
+    input.value = String(nextValue);
+  }
+
+  levelingState.pendingLevelPoints = Math.max(0, freePoints - freeSpent);
+  levelingState.pendingPb = Math.max(0, toInt(levelingState.pendingPb, 0) - pbSpent);
 
   shouldAutoRaiseResources = true;
   closeLevelUpModal();
@@ -548,7 +586,7 @@ function processLevelUps(level) {
 
   if (currentLevel > lastLevel) {
     const gained = currentLevel - lastLevel;
-    levelingState.pendingLevelPoints = toInt(levelingState.pendingLevelPoints, 0) + (gained * 2);
+    levelingState.pendingLevelPoints = toInt(levelingState.pendingLevelPoints, 0) + gained * 2;
     levelingState.pendingPb = toInt(levelingState.pendingPb, 0) + gained;
     levelingState.lastProcessedLevel = currentLevel;
     shouldAutoRaiseResources = true;
@@ -722,7 +760,7 @@ function setActiveTab(tab) {
 
 function collectState() {
   return {
-    v: 7,
+    v: 8,
     name: inpName?.value || "",
     guild: inpGuild?.value || "",
     activeTab: document.querySelector(".tab.is-active")?.dataset.tab || "summary",
@@ -944,15 +982,32 @@ function initRuneSync() {
 function initLevelUpModal() {
   if (!levelUpModal || !levelUpChecklist) return;
 
-  lvlUsePb?.addEventListener("change", refreshLevelUpModal);
+  lvlUsePb?.addEventListener("change", () => {
+    const limit = getLevelUpSelectionLimit();
+    let total = getAllocatedLevelUpTotal();
 
-  levelUpChecklist.querySelectorAll('input[type="checkbox"]').forEach((input) => {
-    input.addEventListener("change", refreshLevelUpModal);
+    if (total > limit) {
+      for (const key of STATUS_KEYS) {
+        while (total > limit && toInt(getLevelUpPointInput(key)?.value, 0) > 0) {
+          setLevelUpPoint(key, toInt(getLevelUpPointInput(key)?.value, 0) - 1);
+          total = getAllocatedLevelUpTotal();
+        }
+      }
+    }
+
+    refreshLevelUpModal();
+  });
+
+  levelUpChecklist.querySelectorAll(".lvl-step").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.stat;
+      const action = button.dataset.action;
+      if (!key || !action) return;
+      changeLevelUpPoint(key, action === "plus" ? 1 : -1);
+    });
   });
 
   btnApplyLevelUp?.addEventListener("click", applyLevelUpSelections);
-
-  levelUpModal.querySelector(".levelUpModal__backdrop")?.addEventListener("click", () => {});
 }
 
 function showRadarTip(text, x, y) {
