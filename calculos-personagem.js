@@ -175,6 +175,7 @@ window.CharacterCalc = (() => {
   function normalizeLevelAndXp({ level, xp }) {
     let currentLevel = Math.max(1, toInt(level, 1));
     let currentXp = Math.max(0, toInt(xp, 0));
+    const startLevel = currentLevel;
     const maxLevel = getMaxMappedLevel();
 
     while (true) {
@@ -191,6 +192,7 @@ window.CharacterCalc = (() => {
       level: currentLevel,
       xp: currentXp,
       nextXp: getNextLevelXp(currentLevel),
+      gainedLevels: Math.max(0, currentLevel - startLevel),
     };
   }
 
@@ -206,6 +208,7 @@ window.CharacterCalc = (() => {
         total: null,
         remaining: null,
         percent: null,
+        gainedLevels: normalized.gainedLevels ?? 0,
       };
     }
 
@@ -215,6 +218,7 @@ window.CharacterCalc = (() => {
       total: next,
       remaining: Math.max(0, next - current),
       percent: clamp(next > 0 ? (current / next) * 100 : 0, 0, 100),
+      gainedLevels: normalized.gainedLevels ?? 0,
     };
   }
 

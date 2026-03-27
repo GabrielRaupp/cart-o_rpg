@@ -281,6 +281,11 @@
                 </div>
 
                 <div class="stat">
+                  <label for="in_ca_bonus">Bônus de CA</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_ca_bonus" placeholder="0" max="999" />
+                </div>
+
+                <div class="stat">
                   <label for="in_weapon_level">Nível da arma</label>
                   <input inputmode="numeric" step="1" type="number" id="in_weapon_level" placeholder="0" max="20" />
                 </div>
@@ -454,15 +459,54 @@
               </details>
 
               <details class="noteCard" open>
-                <summary>Habilidades / magias</summary>
-                <label class="srOnly" for="note_skills">Habilidades / magias</label>
+                <summary>Habilidades</summary>
+                <label class="srOnly" for="note_skills">Habilidades</label>
                 <textarea
                   id="note_skills"
                   class="noteArea"
-                  placeholder="Ex: Bola de fogo, Cura, Ataque rápido..."
+                  placeholder="Ex: Ataque rápido, furtividade, rastrear..."
                   autocorrect="off"
                   spellcheck="false"
                 ></textarea>
+              </details>
+              
+              <details class="noteCard" open>
+                <summary>Magias</summary>
+              
+                <div class="magicNotesGrid">
+                  <div class="magicNoteGroup">
+                    <label for="note_magic_simple" class="magicNoteLabel">Simples</label>
+                    <textarea
+                      id="note_magic_simple"
+                      class="noteArea noteArea--magic"
+                      placeholder="Ex: Luz, faísca, cura leve..."
+                      autocorrect="off"
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+              
+                  <div class="magicNoteGroup">
+                    <label for="note_magic_complex" class="magicNoteLabel">Complexa</label>
+                    <textarea
+                      id="note_magic_complex"
+                      class="noteArea noteArea--magic"
+                      placeholder="Ex: Bola de fogo, barreira arcana..."
+                      autocorrect="off"
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+              
+                  <div class="magicNoteGroup">
+                    <label for="note_magic_advanced" class="magicNoteLabel">Avançada</label>
+                    <textarea
+                      id="note_magic_advanced"
+                      class="noteArea noteArea--magic"
+                      placeholder="Ex: Teleporte, ressurreição..."
+                      autocorrect="off"
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+                </div>
               </details>
 
               <details class="noteCard" open>
@@ -504,8 +548,8 @@
           <h2 id="levelUpTitle">Subiu de nível</h2>
           <p id="levelUpDesc">
             Distribua seus pontos livremente.
-            Você ganha <b>2 pontos por nível</b> e <b>1 PB</b>.
-            Pode colocar os 2 pontos no mesmo status, se quiser.
+            Você ganha <b>2 pontos por nível</b> e <b>1 PB por nível</b>.
+            Se subir mais de um nível de uma vez, os pontos acumulam automaticamente.
           </p>
         </div>
 
@@ -521,15 +565,39 @@
           </div>
 
           <div class="levelUpStat">
+            <span>PB usados em status</span>
+            <strong id="lvlPbSelectedCount">0</strong>
+          </div>
+
+          <div class="levelUpStat">
             <span>Total alocado</span>
-            <strong id="lvlSelectedCount">0</strong>
+            <strong id="lvlSelectedCount">0/0</strong>
           </div>
         </div>
 
         <label class="levelUpPbToggle">
           <input type="checkbox" id="lvlUsePb" />
-          Gastar 1 PB para ganhar +1 ponto extra nesta distribuição
+          Você deseja utilizar seu(s) PB para ganhar 1 ou mais pontos de status extra?
         </label>
+        
+        <div id="lvlPbAllocatorWrap" class="levelUpPbAllocator" hidden>
+          <div class="levelUpRow">
+            <span class="levelUpRow__label">PB em status</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" id="lvlPbMinus">−</button>
+              <input
+                type="number"
+                class="lvl-points-input"
+                id="lvlPbToStats"
+                value="0"
+                min="0"
+                max="99"
+                readonly
+              />
+              <button type="button" class="lvl-step" id="lvlPbPlus">+</button>
+            </div>
+          </div>
+        </div>
 
         <div class="levelUpChecklist levelUpAllocator" id="levelUpChecklist">
           <div class="levelUpRow" data-stat="for">

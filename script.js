@@ -20,6 +20,7 @@ const EDITABLE_FIELD_IDS = [
   "in_pm_cur",
   "in_hpp_cur",
   "in_pi",
+  "in_ca_bonus",
   "in_weapon_level",
 ];
 
@@ -41,6 +42,7 @@ const defaults = {
     pmCur: "",
     hppCur: "",
     pi: "",
+    caBonus: "0",
     weaponLevel: "",
   },
   stats: {
@@ -72,6 +74,9 @@ const defaults = {
     story: "",
     inv: "",
     skills: "",
+    magicSimple: "",
+    magicComplex: "",
+    magicAdvanced: "",
     npcs: "",
   },
 };
@@ -135,6 +140,9 @@ const photoPlaceholder = $("photoPlaceholder");
 const noteStory = $("note_story");
 const noteInv = $("note_inv");
 const noteSkills = $("note_skills");
+const noteMagicSimple = $("note_magic_simple");
+const noteMagicComplex = $("note_magic_complex");
+const noteMagicAdvanced = $("note_magic_advanced");
 const noteNpcs = $("note_npcs");
 
 const rPhys = $("r_phys");
@@ -154,6 +162,11 @@ const lvlUsePb = $("lvlUsePb");
 const lvlPointsLeft = $("lvlPointsLeft");
 const lvlPbLeft = $("lvlPbLeft");
 const lvlSelectedCount = $("lvlSelectedCount");
+const lvlPbSelectedCount = $("lvlPbSelectedCount");
+const lvlPbAllocatorWrap = $("lvlPbAllocatorWrap");
+const lvlPbToStats = $("lvlPbToStats");
+const lvlPbMinus = $("lvlPbMinus");
+const lvlPbPlus = $("lvlPbPlus");
 const btnApplyLevelUp = $("btnApplyLevelUp");
 const levelUpChecklist = $("levelUpChecklist");
 
@@ -407,6 +420,7 @@ function syncSummaryOutputs({ race, derived, xpInfo }) {
   const pmCur = Math.max(0, toInt(inPmCur?.value, 0));
   const hppCur = Math.max(0, toInt(inHppCur?.value, 0));
   const pi = clamp(toInt($("in_pi")?.value, 0), 0, 10);
+  const caBonus = toInt($("in_ca_bonus")?.value, 0);
   const weaponLevel = getCurrentWeaponLevel();
 
   if (outNv) outNv.textContent = String(level);
@@ -420,11 +434,13 @@ function syncSummaryOutputs({ race, derived, xpInfo }) {
   if (outRaca) outRaca.textContent = race?.name || $("in_raca")?.value.trim() || "?";
   if (outClasse) outClasse.textContent = $("in_classe")?.value.trim() || "?";
 
+  const totalCa = derived ? Math.max(0, toInt(derived.ca, 0) + caBonus) : null;
+
   if (derived) {
     if (outHp) outHp.textContent = `${hpCur}/${derived.hpMax}`;
     if (outPm) outPm.textContent = `${pmCur}/${derived.pmMax}`;
     if (outHpp) outHpp.textContent = `${hppCur}/${derived.hppMax}`;
-    if (outCa) outCa.textContent = String(derived.ca);
+    if (outCa) outCa.textContent = String(totalCa);
   } else {
     if (outHp) outHp.textContent = `${hpCur}/?`;
     if (outPm) outPm.textContent = `${pmCur}/?`;
@@ -453,9 +469,24 @@ function getAllocatedLevelUpTotal() {
   return STATUS_KEYS.reduce((acc, key) => acc + map[key], 0);
 }
 
+function getSelectedPbToStats() {
+  return Math.max(0, toInt(lvlPbToStats?.value, 0));
+}
+
+function getMaxPbToStats() {
+  if (!lvlUsePb?.checked) return 0;
+  return Math.max(0, toInt(levelingState.pendingPb, 0));
+}
+
+function setSelectedPbToStats(value) {
+  if (!lvlPbToStats) return;
+  const max = getMaxPbToStats();
+  lvlPbToStats.value = String(clamp(toInt(value, 0), 0, max));
+}
+
 function getLevelUpSelectionLimit() {
   const freePoints = Math.max(0, toInt(levelingState.pendingLevelPoints, 0));
-  const pbExtra = lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0 ? 1 : 0;
+  const pbExtra = getSelectedPbToStats();
   return freePoints + pbExtra;
 }
 
@@ -463,6 +494,29 @@ function setLevelUpPoint(key, value) {
   const input = getLevelUpPointInput(key);
   if (!input) return;
   input.value = String(Math.max(0, toInt(value, 0)));
+}
+
+function trimAllocatedPointsToLimit() {
+  const limit = getLevelUpSelectionLimit();
+  let total = getAllocatedLevelUpTotal();
+
+  if (total <= limit) return;
+
+  for (const key of STATUS_KEYS) {
+    while (total > limit && toInt(getLevelUpPointInput(key)?.value, 0) > 0) {
+      setLevelUpPoint(key, toInt(getLevelUpPointInput(key)?.value, 0) - 1);
+      total = getAllocatedLevelUpTotal();
+    }
+
+    if (total <= limit) break;
+  }
+}
+
+function changeSelectedPbToStats(delta) {
+  const current = getSelectedPbToStats();
+  setSelectedPbToStats(current + delta);
+  trimAllocatedPointsToLimit();
+  refreshLevelUpModal();
 }
 
 function changeLevelUpPoint(key, delta) {
@@ -486,15 +540,29 @@ function refreshLevelUpModal() {
 
   const totalAllocated = getAllocatedLevelUpTotal();
   const limit = getLevelUpSelectionLimit();
+  const maxPbToStats = getMaxPbToStats();
+  const selectedPb = Math.min(getSelectedPbToStats(), maxPbToStats);
+
+  if (selectedPb !== getSelectedPbToStats()) {
+    setSelectedPbToStats(selectedPb);
+  }
 
   if (lvlPointsLeft) lvlPointsLeft.textContent = String(levelingState.pendingLevelPoints || 0);
   if (lvlPbLeft) lvlPbLeft.textContent = String(levelingState.pendingPb || 0);
+  if (lvlPbSelectedCount) lvlPbSelectedCount.textContent = String(selectedPb);
   if (lvlSelectedCount) lvlSelectedCount.textContent = `${totalAllocated}/${limit}`;
 
   if (lvlUsePb) {
     lvlUsePb.disabled = (levelingState.pendingPb || 0) <= 0;
     if (lvlUsePb.disabled) lvlUsePb.checked = false;
   }
+
+  if (lvlPbAllocatorWrap) {
+    lvlPbAllocatorWrap.hidden = !lvlUsePb?.checked || maxPbToStats <= 0;
+  }
+
+  if (lvlPbMinus) lvlPbMinus.disabled = selectedPb <= 0;
+  if (lvlPbPlus) lvlPbPlus.disabled = selectedPb >= maxPbToStats;
 
   for (const key of STATUS_KEYS) {
     const input = getLevelUpPointInput(key);
@@ -522,6 +590,7 @@ function clearLevelUpChecks() {
   }
 
   if (lvlUsePb) lvlUsePb.checked = false;
+  setSelectedPbToStats(0);
 }
 
 function openLevelUpModalIfNeeded() {
@@ -544,16 +613,17 @@ function applyLevelUpSelections() {
   const allocated = getAllocatedLevelUpMap();
   const totalAllocated = STATUS_KEYS.reduce((acc, key) => acc + allocated[key], 0);
   const freePoints = Math.max(0, toInt(levelingState.pendingLevelPoints, 0));
-  const wantsPb = Boolean(lvlUsePb?.checked && (levelingState.pendingPb || 0) > 0);
-  const maxAlloc = freePoints + (wantsPb ? 1 : 0);
+  const pbSelected = Math.max(0, getSelectedPbToStats());
+  const maxAlloc = freePoints + pbSelected;
 
   if (totalAllocated <= 0) return;
   if (totalAllocated > maxAlloc) return;
+  if (pbSelected > (levelingState.pendingPb || 0)) return;
 
   const freeSpent = Math.min(totalAllocated, freePoints);
-  const pbSpent = totalAllocated > freeSpent ? 1 : 0;
+  const pbSpent = Math.max(0, totalAllocated - freeSpent);
 
-  if (freeSpent > freePoints) return;
+  if (pbSpent > pbSelected) return;
   if (pbSpent > (levelingState.pendingPb || 0)) return;
 
   for (const key of STATUS_KEYS) {
@@ -570,6 +640,9 @@ function applyLevelUpSelections() {
   levelingState.pendingLevelPoints = Math.max(0, freePoints - freeSpent);
   levelingState.pendingPb = Math.max(0, toInt(levelingState.pendingPb, 0) - pbSpent);
 
+  setSelectedPbToStats(0);
+  if (lvlUsePb) lvlUsePb.checked = false;
+
   shouldAutoRaiseResources = true;
   closeLevelUpModal();
   applyDerivedStats();
@@ -580,14 +653,37 @@ function applyLevelUpSelections() {
   }
 }
 
-function processLevelUps(level) {
+function processLevelUps(level, gainedLevelsFromXp = 0) {
   const currentLevel = Math.max(1, toInt(level, 1));
   const lastLevel = Math.max(1, toInt(levelingState.lastProcessedLevel, 1));
+  const gainedFromXp = Math.max(0, toInt(gainedLevelsFromXp, 0));
+
+  if (gainedFromXp > 0) {
+    levelingState.pendingLevelPoints =
+      toInt(levelingState.pendingLevelPoints, 0) + gainedFromXp * 2;
+
+    levelingState.pendingPb =
+      toInt(levelingState.pendingPb, 0) + gainedFromXp;
+
+    levelingState.lastProcessedLevel = currentLevel;
+    shouldAutoRaiseResources = true;
+
+    if (!suppressLevelUpPopup) {
+      setTimeout(openLevelUpModalIfNeeded, 0);
+    }
+
+    return;
+  }
 
   if (currentLevel > lastLevel) {
     const gained = currentLevel - lastLevel;
-    levelingState.pendingLevelPoints = toInt(levelingState.pendingLevelPoints, 0) + gained * 2;
-    levelingState.pendingPb = toInt(levelingState.pendingPb, 0) + gained;
+
+    levelingState.pendingLevelPoints =
+      toInt(levelingState.pendingLevelPoints, 0) + gained * 2;
+
+    levelingState.pendingPb =
+      toInt(levelingState.pendingPb, 0) + gained;
+
     levelingState.lastProcessedLevel = currentLevel;
     shouldAutoRaiseResources = true;
 
@@ -606,6 +702,7 @@ function applyDerivedStats() {
   let level = getCurrentLevel();
   let xp = Math.max(0, toInt($("in_xp")?.value, 0));
   const weaponLevel = getCurrentWeaponLevel();
+  let gainedLevelsFromXp = 0;
 
   if (window.CharacterCalc?.normalizeLevelAndXp) {
     const normalized = window.CharacterCalc.normalizeLevelAndXp({
@@ -613,6 +710,7 @@ function applyDerivedStats() {
       xp,
     });
 
+    gainedLevelsFromXp = Math.max(0, toInt(normalized.gainedLevels, 0));
     level = clamp(toInt(normalized.level, level), 1, 60);
     xp = Math.max(0, toInt(normalized.xp, xp));
 
@@ -620,7 +718,7 @@ function applyDerivedStats() {
     if ($("in_xp")) $("in_xp").value = String(xp);
   }
 
-  processLevelUps(level);
+  processLevelUps(level, gainedLevelsFromXp);
 
   syncStatMods(mods);
   syncRuneTiers();
@@ -633,6 +731,7 @@ function applyDerivedStats() {
     total: null,
     remaining: null,
     percent: null,
+    gainedLevels: gainedLevelsFromXp,
   };
 
   if (hasCalcModules()) {
@@ -652,10 +751,13 @@ function applyDerivedStats() {
     sanitizeCurrentResources(derived, previousDerivedSnapshot, shouldAutoRaiseResources);
     shouldAutoRaiseResources = false;
 
+    const caBonus = toInt($("in_ca_bonus")?.value, 0);
+    const totalCa = Math.max(0, toInt(derived.ca, 0) + caBonus);
+
     setReadOnlyValue("in_hp_max", derived.hpMax);
     setReadOnlyValue("in_pm_max", derived.pmMax);
     setReadOnlyValue("in_hpp_max", derived.hppMax);
-    setReadOnlyValue("in_ca", derived.ca);
+    setReadOnlyValue("in_ca", totalCa);
 
     setReadOnlyValue("hit_magic", formatSigned(derived.attackBonuses.magic));
     setReadOnlyValue("hit_phys_for", formatSigned(derived.attackBonuses.physicalFor));
@@ -778,6 +880,7 @@ function collectState() {
       pmCur: $("in_pm_cur")?.value || "",
       hppCur: $("in_hpp_cur")?.value || "",
       pi: $("in_pi")?.value || "",
+      caBonus: $("in_ca_bonus")?.value || "0",
       weaponLevel: $("in_weapon_level")?.value || "",
     },
     stats: STATUS_KEYS.reduce((acc, key) => {
@@ -795,6 +898,9 @@ function collectState() {
       story: noteStory?.value || "",
       inv: noteInv?.value || "",
       skills: noteSkills?.value || "",
+      magicSimple: noteMagicSimple?.value || "",
+      magicComplex: noteMagicComplex?.value || "",
+      magicAdvanced: noteMagicAdvanced?.value || "",
       npcs: noteNpcs?.value || "",
     },
   };
@@ -825,6 +931,7 @@ function migrateLegacy(state) {
   merged.fields.pmCur = String(oldFields.pmCur ?? oldFields.in_pm_cur ?? oldFields.in_pm ?? merged.fields.pmCur);
   merged.fields.hppCur = String(oldFields.hppCur ?? oldFields.in_hpp_cur ?? merged.fields.hppCur);
   merged.fields.pi = String(oldFields.pi ?? oldFields.in_pi ?? merged.fields.pi);
+  merged.fields.caBonus = String(oldFields.caBonus ?? oldFields.in_ca_bonus ?? merged.fields.caBonus);
   merged.fields.weaponLevel = String(oldFields.weaponLevel ?? oldFields.in_weapon_level ?? merged.fields.weaponLevel);
 
   if (state.stats && typeof state.stats === "object") {
@@ -866,6 +973,9 @@ function migrateLegacy(state) {
     merged.notes.story = state.notes.story ?? merged.notes.story;
     merged.notes.inv = state.notes.inv ?? merged.notes.inv;
     merged.notes.skills = state.notes.skills ?? merged.notes.skills;
+    merged.notes.magicSimple = state.notes.magicSimple ?? merged.notes.magicSimple;
+    merged.notes.magicComplex = state.notes.magicComplex ?? merged.notes.magicComplex;
+    merged.notes.magicAdvanced = state.notes.magicAdvanced ?? merged.notes.magicAdvanced;
     merged.notes.npcs = state.notes.npcs ?? merged.notes.npcs;
   }
 
@@ -900,6 +1010,7 @@ function applyState(rawState) {
   $("in_pm_cur").value = state.fields.pmCur;
   $("in_hpp_cur").value = state.fields.hppCur;
   $("in_pi").value = state.fields.pi;
+  $("in_ca_bonus").value = state.fields.caBonus;
   $("in_weapon_level").value = state.fields.weaponLevel;
 
   for (const key of STATUS_KEYS) {
@@ -917,8 +1028,10 @@ function applyState(rawState) {
   if (noteStory) noteStory.value = state.notes.story;
   if (noteInv) noteInv.value = state.notes.inv;
   if (noteSkills) noteSkills.value = state.notes.skills;
+  if (noteMagicSimple) noteMagicSimple.value = state.notes.magicSimple;
+  if (noteMagicComplex) noteMagicComplex.value = state.notes.magicComplex;
+  if (noteMagicAdvanced) noteMagicAdvanced.value = state.notes.magicAdvanced;
   if (noteNpcs) noteNpcs.value = state.notes.npcs;
-
   suppressLevelUpPopup = true;
   applyDerivedStats();
   suppressLevelUpPopup = false;
@@ -983,20 +1096,18 @@ function initLevelUpModal() {
   if (!levelUpModal || !levelUpChecklist) return;
 
   lvlUsePb?.addEventListener("change", () => {
-    const limit = getLevelUpSelectionLimit();
-    let total = getAllocatedLevelUpTotal();
-
-    if (total > limit) {
-      for (const key of STATUS_KEYS) {
-        while (total > limit && toInt(getLevelUpPointInput(key)?.value, 0) > 0) {
-          setLevelUpPoint(key, toInt(getLevelUpPointInput(key)?.value, 0) - 1);
-          total = getAllocatedLevelUpTotal();
-        }
-      }
+    if (!lvlUsePb.checked) {
+      setSelectedPbToStats(0);
+    } else if (getMaxPbToStats() > 0 && getSelectedPbToStats() <= 0) {
+      setSelectedPbToStats(1);
     }
 
+    trimAllocatedPointsToLimit();
     refreshLevelUpModal();
   });
+
+  lvlPbMinus?.addEventListener("click", () => changeSelectedPbToStats(-1));
+  lvlPbPlus?.addEventListener("click", () => changeSelectedPbToStats(1));
 
   levelUpChecklist.querySelectorAll(".lvl-step").forEach((button) => {
     button.addEventListener("click", () => {
@@ -1268,7 +1379,15 @@ function bindInputsToSave() {
     });
   }
 
-  [noteStory, noteInv, noteSkills, noteNpcs].forEach((el) => {
+  [
+    noteStory,
+    noteInv,
+    noteSkills,
+    noteMagicSimple,
+    noteMagicComplex,
+    noteMagicAdvanced,
+    noteNpcs
+  ].forEach((el) => {
     el?.addEventListener("input", saveAll);
   });
 
@@ -1305,6 +1424,7 @@ function resetForm() {
   $("in_pm_cur").value = defaults.fields.pmCur;
   $("in_hpp_cur").value = defaults.fields.hppCur;
   $("in_pi").value = defaults.fields.pi;
+  $("in_ca_bonus").value = defaults.fields.caBonus;
   $("in_weapon_level").value = defaults.fields.weaponLevel;
 
   for (const key of STATUS_KEYS) {
@@ -1319,6 +1439,9 @@ function resetForm() {
   if (noteStory) noteStory.value = defaults.notes.story;
   if (noteInv) noteInv.value = defaults.notes.inv;
   if (noteSkills) noteSkills.value = defaults.notes.skills;
+  if (noteMagicSimple) noteMagicSimple.value = defaults.notes.magicSimple;
+  if (noteMagicComplex) noteMagicComplex.value = defaults.notes.magicComplex;
+  if (noteMagicAdvanced) noteMagicAdvanced.value = defaults.notes.magicAdvanced;
   if (noteNpcs) noteNpcs.value = defaults.notes.npcs;
 
   setActiveTab(defaults.activeTab);

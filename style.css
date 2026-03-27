@@ -256,9 +256,13 @@ button:active, .btn:active { transform: translateY(1px); }
 .lvl-points-input {
   width: 100%;
   min-width: 0;
+  padding: 10px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: rgba(255,255,255,.56);
+  background: rgba(255,255,255,.62);
   color: var(--ink);
   outline: none;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
@@ -567,12 +571,18 @@ input[type="range"] {
 
 .notesPage {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
 }
 
 .notesHead {
   display: grid;
   gap: 10px;
+  width: 100%;
+  min-width: 0;
 }
 
 .notesHead__row {
@@ -585,10 +595,22 @@ input[type="range"] {
 
 .accordionList {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.noteCard {
+  width: 100%;
+  min-width: 0;
 }
 
 .noteCard summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   list-style: none;
   font-size: 12px;
   letter-spacing: .18em;
@@ -601,6 +623,9 @@ input[type="range"] {
 .noteCard[open] summary { margin-bottom: 10px; }
 
 .noteArea {
+  display: block;
+  width: 100%;
+  min-width: 0;
   min-height: 180px;
   resize: vertical;
   line-height: 1.4;
@@ -848,6 +873,11 @@ input[type="range"] {
   accent-color: var(--accent-3);
 }
 
+.levelUpPbAllocator {
+  display: grid;
+  gap: 10px;
+}
+
 .levelUpChecklist {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -862,6 +892,7 @@ input[type="range"] {
   border-radius: 14px;
   background: rgba(255,255,255,.18);
 }
+
 
 .levelUpStepper {
   display: grid;
@@ -1064,12 +1095,17 @@ input[type="range"] {
   }
 
   .notesPage {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
   }
 
-  .notesHead {
+  .notesHead,
+  .accordionList {
     grid-column: 1 / -1;
+  }
+
+  .accordionList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1143,5 +1179,37 @@ input[type="range"] {
   .footerLine {
     position: static;
     border-top: 1px solid rgba(42,34,26,.2);
+  }
+}
+
+.magicNotesGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.magicNoteGroup {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.magicNoteLabel {
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: rgba(42,34,26,.88);
+}
+
+.noteArea--magic {
+  min-height: 150px;
+}
+
+@media (min-width: 720px) {
+  .magicNotesGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
