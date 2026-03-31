@@ -170,6 +170,9 @@ const lvlPbPlus = $("lvlPbPlus");
 const btnApplyLevelUp = $("btnApplyLevelUp");
 const levelUpChecklist = $("levelUpChecklist");
 
+const levelUpCurrentStatusButtons = () =>
+  Array.from(levelUpChecklist?.querySelectorAll("[data-toggle-current-stat]") || []);
+
 radarTip.id = "radarTip";
 radarTip.className = "radarTip";
 radarTip.hidden = true;
@@ -186,6 +189,7 @@ let levelingState = clonePlain(defaults.leveling);
 let previousDerivedSnapshot = null;
 let shouldAutoRaiseResources = false;
 let suppressLevelUpPopup = false;
+const levelUpCurrentStatusVisible = new Set();
 
 function openPhotoDb() {
   if (photoDbPromise) return photoDbPromise;
@@ -456,6 +460,49 @@ function getLevelUpPointInput(key) {
   return $("lvl_" + key);
 }
 
+function getLevelUpCurrentValueEl(key) {
+  return $("lvl_current_" + key);
+}
+
+function isLevelUpCurrentStatusVisible(key) {
+  return levelUpCurrentStatusVisible.has(key);
+}
+
+function setLevelUpCurrentStatusVisibility(key, visible) {
+  const valueEl = getLevelUpCurrentValueEl(key);
+  const button = levelUpChecklist?.querySelector(`[data-toggle-current-stat="${key}"]`);
+  const shouldShow = Boolean(visible);
+
+  if (shouldShow) {
+    levelUpCurrentStatusVisible.add(key);
+  } else {
+    levelUpCurrentStatusVisible.delete(key);
+  }
+
+  if (valueEl) {
+    valueEl.hidden = !shouldShow;
+  }
+
+  if (button) {
+    button.setAttribute("aria-pressed", String(shouldShow));
+  }
+}
+
+function resetAllLevelUpCurrentStatusVisibility() {
+  for (const key of STATUS_KEYS) {
+    setLevelUpCurrentStatusVisibility(key, false);
+  }
+}
+
+function refreshLevelUpCurrentStatusValues() {
+  for (const key of STATUS_KEYS) {
+    const sourceInput = $("st_" + key);
+    const valueEl = getLevelUpCurrentValueEl(key);
+    if (!valueEl) continue;
+    valueEl.textContent = `Atual: ${toInt(sourceInput?.value, 0)}`;
+  }
+}
+
 function getAllocatedLevelUpMap() {
   const out = {};
   for (const key of STATUS_KEYS) {
@@ -591,6 +638,7 @@ function clearLevelUpChecks() {
 
   if (lvlUsePb) lvlUsePb.checked = false;
   setSelectedPbToStats(0);
+  resetAllLevelUpCurrentStatusVisibility();
 }
 
 function openLevelUpModalIfNeeded() {
@@ -598,6 +646,7 @@ function openLevelUpModalIfNeeded() {
   if ((levelingState.pendingLevelPoints || 0) <= 0) return;
 
   clearLevelUpChecks();
+  refreshLevelUpCurrentStatusValues();
   refreshLevelUpModal();
   levelUpModal.hidden = false;
   document.body.style.overflow = "hidden";
@@ -722,6 +771,7 @@ function applyDerivedStats() {
 
   syncStatMods(mods);
   syncRuneTiers();
+  refreshLevelUpCurrentStatusValues();
 
   let race = null;
   let derived = null;
@@ -1032,6 +1082,7 @@ function applyState(rawState) {
   if (noteMagicComplex) noteMagicComplex.value = state.notes.magicComplex;
   if (noteMagicAdvanced) noteMagicAdvanced.value = state.notes.magicAdvanced;
   if (noteNpcs) noteNpcs.value = state.notes.npcs;
+
   suppressLevelUpPopup = true;
   applyDerivedStats();
   suppressLevelUpPopup = false;
@@ -1115,6 +1166,16 @@ function initLevelUpModal() {
       const action = button.dataset.action;
       if (!key || !action) return;
       changeLevelUpPoint(key, action === "plus" ? 1 : -1);
+    });
+  });
+
+  levelUpCurrentStatusButtons().forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.toggleCurrentStat;
+      if (!key) return;
+
+      refreshLevelUpCurrentStatusValues();
+      setLevelUpCurrentStatusVisibility(key, !isLevelUpCurrentStatusVisible(key));
     });
   });
 
@@ -1259,50 +1320,57 @@ function queueRadarDraw() {
 }
 
 function pickRadarPoint(px, py) {
-  const size = Math.max(240, Math.floor(radarCssSize || canvas?.getBoundingClientRect().width || 440));
+  const size = Math.max(240, Math.floor(radarCssSize || canvas?.getBoundingClientRect().width || 0));
+  if (!size) return null;
+
   const cx = size / 2;
   const cy = size / 2;
   const baseRadius = size * 0.34;
   const values = getStatusValues();
   const maxV = Math.max(10, ...values);
-  const hit = 16;
 
-  let best = null;
+  let found = null;
 
   for (let i = 0; i < STATUS_LABELS.length; i++) {
     const ang = -Math.PI / 2 + i * ((2 * Math.PI) / STATUS_LABELS.length);
     const rr = baseRadius * (values[i] / maxV);
     const x = cx + Math.cos(ang) * rr;
     const y = cy + Math.sin(ang) * rr;
-    const d = Math.hypot(px - x, py - y);
+    const dist = Math.hypot(px - x, py - y);
 
-    if (d <= hit && (!best || d < best.d)) {
-      best = { i, d, x, y, label: STATUS_LABELS[i], value: values[i] };
+    if (dist <= 18) {
+      found = {
+        key: STATUS_KEYS[i],
+        label: STATUS_LABELS[i],
+        value: values[i],
+        x,
+        y,
+        dist,
+      };
+      break;
     }
   }
 
-  return best;
+  return found;
 }
 
 function onRadarPointer(evt) {
-  if (!canvas || !radarWrap) return;
+  if (!canvas) return;
 
   const rect = canvas.getBoundingClientRect();
-  const x = evt.clientX - rect.left;
-  const y = evt.clientY - rect.top;
-  const picked = pickRadarPoint(x, y);
+  const scaleX = radarCssSize > 0 ? radarCssSize / rect.width : 1;
+  const scaleY = radarCssSize > 0 ? radarCssSize / rect.height : 1;
+  const px = (evt.clientX - rect.left) * scaleX;
+  const py = (evt.clientY - rect.top) * scaleY;
 
-  if (!picked) {
+  const hit = pickRadarPoint(px, py);
+
+  if (!hit) {
     hideRadarTip();
     return;
   }
 
-  const wrapRect = radarWrap.getBoundingClientRect();
-  showRadarTip(
-    `${picked.label}: ${picked.value}`,
-    rect.left + picked.x - wrapRect.left,
-    rect.top + picked.y - wrapRect.top
-  );
+  showRadarTip(`${hit.label}: ${hit.value}`, hit.x, hit.y);
 }
 
 async function exportState() {
