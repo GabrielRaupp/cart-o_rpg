@@ -9,6 +9,28 @@ const SAVE_DELAY = 180;
 const STATUS_KEYS = ["for", "des", "con", "int", "sab", "car", "adp", "res"];
 const STATUS_LABELS = ["FOR", "DES", "CON", "INT", "SAB", "CAR", "ADP", "RES"];
 
+const MANUAL_CALC_FIELD_IDS = [
+  "in_hp_max",
+  "in_pm_max",
+  "in_hpp_max",
+  "in_ca",
+  "in_xp_next",
+  "in_xp_left",
+  "hit_magic",
+  "hit_phys_for",
+  "hit_phys_des",
+  "hit_ench_for",
+  "hit_ench_des",
+];
+
+const SIGNED_MANUAL_CALC_FIELDS = new Set([
+  "hit_magic",
+  "hit_phys_for",
+  "hit_phys_des",
+  "hit_ench_for",
+  "hit_ench_des",
+]);
+
 const EDITABLE_FIELD_IDS = [
   "in_idade",
   "in_altura",
@@ -60,6 +82,11 @@ const defaults = {
     intModsByLevel: [0],
     resModsByLevel: [0],
   },
+  calcOverrides: {
+    enabled: false,
+    deltas: {},
+  },
+  calcAdjustments: {},
   leveling: {
     pendingLevelPoints: 0,
     pendingPb: 0,
@@ -80,6 +107,34 @@ const defaults = {
     npcs: "",
   },
 };
+
+function getPersistentCalcAdjustment(id) {
+  return toInt(calcAdjustmentState?.[id], 0);
+}
+
+function applyPersistentCalcAdjustments() {
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const el = $(id);
+    if (!el) continue;
+
+    const base = toInt(currentBaseCalcValues[id], 0);
+    const persistent = getPersistentCalcAdjustment(id);
+    el.value = getCalcFieldDisplayValue(id, base + persistent);
+  }
+}
+
+function commitManualOverridesToPersistentAdjustments() {
+  const next = { ...(calcAdjustmentState || {}) };
+
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const persistent = toInt(next[id], 0);
+    const manualDelta = toInt(calcOverrideState?.deltas?.[id], 0);
+    next[id] = persistent + manualDelta;
+  }
+
+  calcAdjustmentState = next;
+  calcOverrideState.deltas = {};
+}
 
 function clonePlain(value) {
   return JSON.parse(JSON.stringify(value));
@@ -170,6 +225,10 @@ const lvlPbPlus = $("lvlPbPlus");
 const btnApplyLevelUp = $("btnApplyLevelUp");
 const levelUpChecklist = $("levelUpChecklist");
 
+const btnToggleCalcOverride = $("btnToggleCalcOverride");
+const calcModeChip = $("calcModeChip");
+
+
 const levelUpCurrentStatusButtons = () =>
   Array.from(levelUpChecklist?.querySelectorAll("[data-toggle-current-stat]") || []);
 
@@ -189,7 +248,109 @@ let levelingState = clonePlain(defaults.leveling);
 let previousDerivedSnapshot = null;
 let shouldAutoRaiseResources = false;
 let suppressLevelUpPopup = false;
+
+let calcOverrideState = clonePlain(defaults.calcOverrides);
+let currentBaseCalcValues = {};
+let calcAdjustmentState = clonePlain(defaults.calcAdjustments);
+
 const levelUpCurrentStatusVisible = new Set();
+
+function parseCalcFieldValue(id, value) {
+  if (value == null || value === "" || value === "—") return 0;
+  return toInt(String(value).replace("+", ""), 0);
+}
+
+function getCalcFieldDisplayValue(id, value) {
+  const n = toInt(value, 0);
+  return SIGNED_MANUAL_CALC_FIELDS.has(id) ? formatSigned(n) : String(n);
+}
+
+function captureCurrentBaseCalcValues() {
+  currentBaseCalcValues = {};
+
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const el = $(id);
+    if (!el) continue;
+    currentBaseCalcValues[id] = parseCalcFieldValue(id, el.value);
+  }
+}
+
+function applyManualCalcOverrides() {
+  applyPersistentCalcAdjustments();
+
+  if (!calcOverrideState?.enabled) return;
+
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const el = $(id);
+    if (!el) continue;
+
+    const base = toInt(currentBaseCalcValues[id], 0);
+    const persistent = getPersistentCalcAdjustment(id);
+    const delta = toInt(calcOverrideState.deltas?.[id], 0);
+    const finalValue = base + persistent + delta;
+
+    el.value = getCalcFieldDisplayValue(id, finalValue);
+  }
+}
+function syncCalcOverrideUi() {
+  const enabled = Boolean(calcOverrideState?.enabled);
+
+  if (calcModeChip) {
+    calcModeChip.textContent = enabled ? "manual" : "automático";
+  }
+
+  if (btnToggleCalcOverride) {
+    btnToggleCalcOverride.textContent = enabled ? "Voltar para automático" : "Ajustar manualmente";
+    btnToggleCalcOverride.setAttribute("aria-pressed", String(enabled));
+  }
+
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const el = $(id);
+    if (!el) continue;
+
+    el.readOnly = !enabled;
+    el.dataset.manualOverride = enabled ? "true" : "false";
+  }
+}
+
+function refreshCalcOverrideDeltasFromInputs() {
+  if (!calcOverrideState.enabled) return;
+
+  const deltas = {};
+
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const el = $(id);
+    if (!el) continue;
+
+    const base = toInt(currentBaseCalcValues[id], 0);
+    const persistent = getPersistentCalcAdjustment(id);
+    const current = parseCalcFieldValue(id, el.value);
+
+    deltas[id] = current - (base + persistent);
+  }
+
+  calcOverrideState.deltas = deltas;
+}
+
+function toggleCalcOverrideMode() {
+  const willEnable = !calcOverrideState.enabled;
+
+  if (willEnable) {
+    calcOverrideState.enabled = true;
+
+    if (!calcOverrideState.deltas || typeof calcOverrideState.deltas !== "object") {
+      calcOverrideState.deltas = {};
+    }
+  } else {
+    commitManualOverridesToPersistentAdjustments();
+    calcOverrideState.enabled = false;
+  }
+
+  syncCalcOverrideUi();
+  applyDerivedStats();
+  saveAll();
+}
+
 
 function openPhotoDb() {
   if (photoDbPromise) return photoDbPromise;
@@ -825,6 +986,23 @@ function applyDerivedStats() {
 
     setReadOnlyValue("in_xp_next", xpInfo.total == null ? "—" : xpInfo.total);
     setReadOnlyValue("in_xp_left", xpInfo.remaining == null ? "—" : xpInfo.remaining);
+
+    currentBaseCalcValues = {
+      in_hp_max: toInt(derived.hpMax, 0),
+      in_pm_max: toInt(derived.pmMax, 0),
+      in_hpp_max: toInt(derived.hppMax, 0),
+      in_ca: toInt(totalCa, 0),
+      in_xp_next: xpInfo.total == null ? 0 : toInt(xpInfo.total, 0),
+      in_xp_left: xpInfo.remaining == null ? 0 : toInt(xpInfo.remaining, 0),
+      hit_magic: toInt(derived.attackBonuses.magic, 0),
+      hit_phys_for: toInt(derived.attackBonuses.physicalFor, 0),
+      hit_phys_des: toInt(derived.attackBonuses.physicalDes, 0),
+      hit_ench_for: toInt(derived.attackBonuses.enchantedFor, 0),
+      hit_ench_des: toInt(derived.attackBonuses.enchantedDes, 0),
+    };
+
+    applyManualCalcOverrides();
+    syncCalcOverrideUi();
   }
 
   previousDerivedSnapshot = derived
@@ -919,6 +1097,7 @@ function collectState() {
     glyphTop: $("glyphTopTrack")?.textContent || "",
     glyphBottom: $("glyphBottomTrack")?.textContent || "",
     photoStored: Boolean(photoDataUrl),
+
     fields: {
       idade: $("in_idade")?.value || "",
       altura: $("in_altura")?.value || "",
@@ -933,17 +1112,35 @@ function collectState() {
       caBonus: $("in_ca_bonus")?.value || "0",
       weaponLevel: $("in_weapon_level")?.value || "",
     },
+
     stats: STATUS_KEYS.reduce((acc, key) => {
       acc[key] = $("st_" + key)?.value || "";
       return acc;
     }, {}),
+
     progression: clonePlain(progressionState),
+
+    calcOverrides: {
+      enabled: Boolean(calcOverrideState?.enabled),
+      deltas:
+        calcOverrideState?.deltas && typeof calcOverrideState.deltas === "object"
+          ? { ...calcOverrideState.deltas }
+          : {},
+    },
+
+    calcAdjustments:
+      calcAdjustmentState && typeof calcAdjustmentState === "object"
+        ? { ...calcAdjustmentState }
+        : {},
+
     leveling: clonePlain(levelingState),
+
     runes: {
       phys: clamp(toInt(rPhys?.value, 0), 0, 100),
       arc: clamp(toInt(rArc?.value, 0), 0, 100),
       spi: clamp(toInt(rSpi?.value, 0), 0, 100),
     },
+
     notes: {
       story: noteStory?.value || "",
       inv: noteInv?.value || "",
@@ -961,6 +1158,18 @@ function migrateLegacy(state) {
 
   if (!state || typeof state !== "object") {
     return merged;
+  }
+
+  if (state.calcOverrides && typeof state.calcOverrides === "object") {
+    merged.calcOverrides.enabled = Boolean(state.calcOverrides.enabled);
+    merged.calcOverrides.deltas =
+      state.calcOverrides.deltas && typeof state.calcOverrides.deltas === "object"
+        ? { ...state.calcOverrides.deltas }
+        : {};
+  }
+
+  if (state.calcAdjustments && typeof state.calcAdjustments === "object") {
+    merged.calcAdjustments = { ...state.calcAdjustments };
   }
 
   merged.name = state.name ?? merged.name;
@@ -1007,8 +1216,14 @@ function migrateLegacy(state) {
   const savedLeveling = state.leveling && typeof state.leveling === "object" ? state.leveling : null;
   const mergedLevel = clamp(toInt(merged.fields.nv, 1), 1, 60);
 
-  merged.leveling.pendingLevelPoints = savedLeveling ? Math.max(0, toInt(savedLeveling.pendingLevelPoints, 0)) : 0;
-  merged.leveling.pendingPb = savedLeveling ? Math.max(0, toInt(savedLeveling.pendingPb, 0)) : 0;
+  merged.leveling.pendingLevelPoints = savedLeveling
+    ? Math.max(0, toInt(savedLeveling.pendingLevelPoints, 0))
+    : 0;
+
+  merged.leveling.pendingPb = savedLeveling
+    ? Math.max(0, toInt(savedLeveling.pendingPb, 0))
+    : 0;
+
   merged.leveling.lastProcessedLevel = savedLeveling
     ? Math.max(1, toInt(savedLeveling.lastProcessedLevel, mergedLevel))
     : mergedLevel;
@@ -1070,6 +1285,9 @@ function applyState(rawState) {
 
   progressionState = clonePlain(state.progression);
   levelingState = clonePlain(state.leveling);
+  calcOverrideState = clonePlain(state.calcOverrides || defaults.calcOverrides);
+  calcAdjustmentState = clonePlain(state.calcAdjustments || defaults.calcAdjustments);
+  syncCalcOverrideUi();
 
   syncRunePair(rPhys, nPhys, state.runes.phys);
   syncRunePair(rArc, nArc, state.runes.arc);
@@ -1447,6 +1665,17 @@ function bindInputsToSave() {
     });
   }
 
+  for (const id of MANUAL_CALC_FIELD_IDS) {
+    const input = $(id);
+    if (!input) continue;
+
+    input.addEventListener("input", () => {
+      if (!calcOverrideState.enabled) return;
+      refreshCalcOverrideDeltasFromInputs();
+      saveAll();
+    });
+  }
+
   [
     noteStory,
     noteInv,
@@ -1476,6 +1705,9 @@ function resetForm() {
   localStorage.removeItem(STORAGE_KEY);
   progressionState = clonePlain(defaults.progression);
   levelingState = clonePlain(defaults.leveling);
+  calcOverrideState = clonePlain(defaults.calcOverrides);
+  calcAdjustmentState = clonePlain(defaults.calcAdjustments);
+  currentBaseCalcValues = {};
   previousDerivedSnapshot = null;
   shouldAutoRaiseResources = false;
 
@@ -1512,6 +1744,7 @@ function resetForm() {
   if (noteMagicAdvanced) noteMagicAdvanced.value = defaults.notes.magicAdvanced;
   if (noteNpcs) noteNpcs.value = defaults.notes.npcs;
 
+  syncCalcOverrideUi();
   setActiveTab(defaults.activeTab);
   setPhoto("");
   clearPhotoFromDb().catch(() => {});
@@ -1564,6 +1797,7 @@ async function init() {
   initRuneSync();
   initLevelUpModal();
   bindInputsToSave();
+  syncCalcOverrideUi();
 
   inpPhoto?.addEventListener("change", handlePhotoChange);
   btnRemovePhoto?.addEventListener("click", removePhoto);
@@ -1577,6 +1811,7 @@ async function init() {
 
   $("btnReset")?.addEventListener("click", resetForm);
   $("btnPrint")?.addEventListener("click", () => window.print());
+  btnToggleCalcOverride?.addEventListener("click", toggleCalcOverrideMode);
 
   const loaded = loadAll();
 

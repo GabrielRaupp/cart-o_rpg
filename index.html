@@ -316,7 +316,8 @@
               <div class="sectionTitle">
                 <h2>Cálculos automáticos</h2>
                 <div class="chips">
-                  <span class="chip">somente leitura</span>
+                  <span class="chip" id="calcModeChip">automático</span>
+                  <button type="button" class="chip" id="btnToggleCalcOverride">Ajustar manualmente</button>
                 </div>
               </div>
 
@@ -621,111 +622,111 @@
           </div>
         </div>
 
-          <div class="levelUpChecklist levelUpAllocator" id="levelUpChecklist">
-            <div class="levelUpRow" data-stat="for">
-              <span class="levelUpRow__label">FOR</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="for">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_for" data-stat="for" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="for">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="for" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_for" hidden>Atual: 0</small>
+        <div class="levelUpChecklist levelUpAllocator" id="levelUpChecklist">
+          <div class="levelUpRow" data-stat="for">
+            <span class="levelUpRow__label">FOR</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="for">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_for" data-stat="for" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="for">+</button>
             </div>
-
-            <div class="levelUpRow" data-stat="des">
-              <span class="levelUpRow__label">DES</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="des">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_des" data-stat="des" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="des">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="des" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_des" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="con">
-              <span class="levelUpRow__label">CON</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="con">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_con" data-stat="con" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="con">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="con" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_con" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="int">
-              <span class="levelUpRow__label">INT</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="int">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_int" data-stat="int" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="int">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="int" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_int" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="sab">
-              <span class="levelUpRow__label">SAB</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="sab">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_sab" data-stat="sab" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="sab">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="sab" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_sab" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="car">
-              <span class="levelUpRow__label">CAR</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="car">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_car" data-stat="car" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="car">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="car" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_car" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="adp">
-              <span class="levelUpRow__label">ADP</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="adp">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_adp" data-stat="adp" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="adp">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="adp" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_adp" hidden>Atual: 0</small>
-            </div>
-
-            <div class="levelUpRow" data-stat="res">
-              <span class="levelUpRow__label">RES</span>
-              <div class="levelUpStepper">
-                <button type="button" class="lvl-step" data-action="minus" data-stat="res">−</button>
-                <input type="number" class="lvl-points-input" id="lvl_res" data-stat="res" value="0" min="0" max="99" readonly />
-                <button type="button" class="lvl-step" data-action="plus" data-stat="res">+</button>
-              </div>
-              <button type="button" class="lvl-current-toggle" data-toggle-current-stat="res" aria-pressed="false">
-                Exibir status
-              </button>
-              <small class="lvl-current-value" id="lvl_current_res" hidden>Atual: 0</small>
-            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="for" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_for" hidden>Atual: 0</small>
           </div>
+
+          <div class="levelUpRow" data-stat="des">
+            <span class="levelUpRow__label">DES</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="des">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_des" data-stat="des" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="des">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="des" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_des" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="con">
+            <span class="levelUpRow__label">CON</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="con">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_con" data-stat="con" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="con">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="con" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_con" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="int">
+            <span class="levelUpRow__label">INT</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="int">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_int" data-stat="int" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="int">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="int" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_int" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="sab">
+            <span class="levelUpRow__label">SAB</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="sab">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_sab" data-stat="sab" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="sab">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="sab" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_sab" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="car">
+            <span class="levelUpRow__label">CAR</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="car">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_car" data-stat="car" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="car">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="car" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_car" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="adp">
+            <span class="levelUpRow__label">ADP</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="adp">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_adp" data-stat="adp" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="adp">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="adp" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_adp" hidden>Atual: 0</small>
+          </div>
+
+          <div class="levelUpRow" data-stat="res">
+            <span class="levelUpRow__label">RES</span>
+            <div class="levelUpStepper">
+              <button type="button" class="lvl-step" data-action="minus" data-stat="res">−</button>
+              <input type="number" class="lvl-points-input" id="lvl_res" data-stat="res" value="0" min="0" max="99" readonly />
+              <button type="button" class="lvl-step" data-action="plus" data-stat="res">+</button>
+            </div>
+            <button type="button" class="lvl-current-toggle" data-toggle-current-stat="res" aria-pressed="false">
+              Exibir status
+            </button>
+            <small class="lvl-current-value" id="lvl_current_res" hidden>Atual: 0</small>
+          </div>
+        </div>
 
         <div class="levelUpModal__actions">
           <button type="button" id="btnApplyLevelUp">Aplicar</button>
@@ -738,68 +739,68 @@
     </noscript>
   </main>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const btnToolbarMenu = document.getElementById('btnToolbarMenu');
-    const toolbarDropdown = document.getElementById('toolbarDropdown');
-    const inpPhoto = document.getElementById('inpPhoto');
-    const inpImport = document.getElementById('inpImport');
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnToolbarMenu = document.getElementById('btnToolbarMenu');
+      const toolbarDropdown = document.getElementById('toolbarDropdown');
+      const inpPhoto = document.getElementById('inpPhoto');
+      const inpImport = document.getElementById('inpImport');
 
-    if (!btnToolbarMenu || !toolbarDropdown) return;
+      if (!btnToolbarMenu || !toolbarDropdown) return;
 
-    function closeToolbarMenu() {
-      toolbarDropdown.hidden = true;
-      btnToolbarMenu.setAttribute('aria-expanded', 'false');
-    }
-
-    function openToolbarMenu() {
-      toolbarDropdown.hidden = false;
-      btnToolbarMenu.setAttribute('aria-expanded', 'true');
-    }
-
-    function toggleToolbarMenu() {
-      const isOpen = !toolbarDropdown.hidden;
-      if (isOpen) closeToolbarMenu();
-      else openToolbarMenu();
-    }
-
-    btnToolbarMenu.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      toggleToolbarMenu();
-    });
-
-    document.addEventListener('click', (event) => {
-      if (!event.target.closest('.toolbarMenu')) {
-        closeToolbarMenu();
+      function closeToolbarMenu() {
+        toolbarDropdown.hidden = true;
+        btnToolbarMenu.setAttribute('aria-expanded', 'false');
       }
-    });
 
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape') {
-        closeToolbarMenu();
+      function openToolbarMenu() {
+        toolbarDropdown.hidden = false;
+        btnToolbarMenu.setAttribute('aria-expanded', 'true');
       }
-    });
 
-    toolbarDropdown.querySelectorAll('button.toolbarMenu__item').forEach((item) => {
-      item.addEventListener('click', () => {
-        closeToolbarMenu();
+      function toggleToolbarMenu() {
+        const isOpen = !toolbarDropdown.hidden;
+        if (isOpen) closeToolbarMenu();
+        else openToolbarMenu();
+      }
+
+      btnToolbarMenu.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleToolbarMenu();
       });
-    });
 
-    toolbarDropdown.querySelectorAll('label.toolbarMenu__item').forEach((item) => {
-      item.addEventListener('click', () => {
-        closeToolbarMenu();
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.toolbarMenu')) {
+          closeToolbarMenu();
+        }
       });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeToolbarMenu();
+        }
+      });
+
+      toolbarDropdown.querySelectorAll('button.toolbarMenu__item').forEach((item) => {
+        item.addEventListener('click', () => {
+          closeToolbarMenu();
+        });
+      });
+
+      toolbarDropdown.querySelectorAll('label.toolbarMenu__item').forEach((item) => {
+        item.addEventListener('click', () => {
+          closeToolbarMenu();
+        });
+      });
+
+      inpPhoto?.addEventListener('click', closeToolbarMenu);
+      inpPhoto?.addEventListener('change', closeToolbarMenu);
+
+      inpImport?.addEventListener('click', closeToolbarMenu);
+      inpImport?.addEventListener('change', closeToolbarMenu);
     });
-
-    inpPhoto?.addEventListener('click', closeToolbarMenu);
-    inpPhoto?.addEventListener('change', closeToolbarMenu);
-
-    inpImport?.addEventListener('click', closeToolbarMenu);
-    inpImport?.addEventListener('change', closeToolbarMenu);
-  });
-</script>
+  </script>
 
   <script src="./racas.js" defer></script>
   <script src="./calculos-personagem.js" defer></script>
