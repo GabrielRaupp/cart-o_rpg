@@ -1383,3 +1383,244 @@ input[type="range"] {
   }
 }
 
+/* ===== Criação de Magias ===== */
+.card__tabs {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.spellCreatorPage {
+  display: grid;
+  gap: 14px;
+}
+
+.spellCreatorHero {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(0deg, rgba(255,255,255,.14), rgba(255,255,255,.03));
+}
+
+.spellCreatorHero h2 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.spellCreatorHero p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.spellBotGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.spellBotBox {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(0deg, rgba(255,255,255,.14), rgba(255,255,255,.03));
+}
+
+.spellBotBox h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.spellBotForm {
+  display: grid;
+  gap: 12px;
+}
+
+.spellBotForm .formGrid {
+  margin: 0;
+}
+
+.spellBotForm select,
+.spellBotForm input,
+.spellBotForm textarea,
+.spellKindSelect {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(255,255,255,.62);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+  outline: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+.spellBotForm select {
+  cursor: pointer;
+  text-align: left;
+}
+
+.spellBotForm textarea {
+  text-align: left;
+}
+
+.spellBotForm input::placeholder,
+.spellBotForm textarea::placeholder {
+  color: rgba(42,34,26,.56);
+}
+
+.spellBotHint {
+  display: block;
+  margin-top: 2px;
+  color: rgba(42,34,26,.72);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.spellTextArea {
+  width: 100%;
+  min-height: 150px;
+  resize: vertical;
+}
+
+.spellDynamicFields,
+.spellMultiKindWrap {
+  display: grid;
+  gap: 10px;
+}
+
+.spellFieldGroup {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px dashed rgba(42,34,26,.24);
+  border-radius: 14px;
+  background: rgba(255,255,255,.10);
+}
+
+.spellFieldGroup[hidden],
+.spellMultiKindWrap[hidden],
+#spellGradeWrap[hidden],
+#spellKindCountWrap[hidden] {
+  display: none !important;
+}
+
+.spellFieldTitle {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: rgba(42,34,26,.88);
+  font-weight: 900;
+}
+
+.spellMultiKindGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.spellMiniStat {
+  padding: 8px;
+}
+
+.spellActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.spellActions button,
+.spellMiniButton {
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(42,34,26,.90);
+  color: #f8f3e8;
+  padding: 10px 14px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 900;
+}
+
+.spellActions button:hover,
+.spellMiniButton:hover {
+  background: rgba(42,34,26,.78);
+}
+
+.spellBotOutput {
+  display: grid;
+  gap: 12px;
+}
+
+.spellBotMessage {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255,255,255,.18);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.spellResultGood {
+  border-color: rgba(43, 125, 67, .45);
+  background: rgba(80, 160, 92, .13);
+}
+
+.spellResultWarn {
+  border-color: rgba(151, 111, 35, .48);
+  background: rgba(188, 142, 56, .14);
+}
+
+.spellResultBad {
+  border-color: rgba(146, 55, 55, .48);
+  background: rgba(180, 73, 73, .13);
+}
+
+.spellRulesList {
+  display: grid;
+  gap: 10px;
+}
+
+.spellRuleCard {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(255,255,255,.14);
+  color: var(--ink-soft);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.spellRuleCard b {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 880px) {
+  .spellBotGrid {
+    grid-template-columns: 1fr;
+  }
+}

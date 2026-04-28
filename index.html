@@ -65,6 +65,7 @@
         >
           Resumo
         </button>
+
         <button
           id="tabNotes"
           class="tab"
@@ -75,6 +76,18 @@
           data-tab="notes"
         >
           Notas
+        </button>
+
+        <button
+          id="tabSpellCreator"
+          class="tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panelSpellCreator"
+          data-tab="spellCreator"
+        >
+          Criação de Magias
         </button>
       </div>
 
@@ -546,6 +559,364 @@
             </div>
           </div>
         </section>
+
+        <section
+          id="panelSpellCreator"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tabSpellCreator"
+          data-panel="spellCreator"
+          hidden
+        >
+          <div class="notesPage spellCreatorPage">
+            <div class="notesHead">
+              <div class="glyphMarquee" aria-hidden="true">
+                <div class="track" id="glyphTopTrackMagic"></div>
+              </div>
+              <div class="notesHead__row">
+                <div class="backTitle">Criação de Magias</div>
+                <span class="saveBadge" id="spellSaveState" role="status" aria-live="polite">bot pronto</span>
+              </div>
+            </div>
+
+            <section class="spellCreatorHero" aria-label="Bot de criação de magias">
+              <h2>Bot de balanceamento</h2>
+              <p>
+                Escolha a categoria, o grau e o tipo da magia. Para magias complexas, use
+                “Mais de um tipo” e cole a descrição completa no campo final.
+              </p>
+            </section>
+
+            <div class="spellBotGrid">
+              <section class="spellBotBox" aria-label="Formulário da magia">
+                <h3>Dados da magia</h3>
+
+                <form id="spellCreatorForm" class="spellBotForm" autocomplete="off">
+                  <div class="spellPasteBox">
+                    <p class="spellFieldTitle">Colar magia pronta</p>
+
+                    <div class="stat">
+                      <label for="spellPasteText">Texto da magia</label>
+                      <textarea
+                        id="spellPasteText"
+                        class="noteArea spellTextArea"
+                        placeholder="Cole aqui a magia que veio do Discord ou bloco de notas. O bot tenta auto preencher os campos."
+                        spellcheck="false"
+                      ></textarea>
+                      <small class="spellBotHint">
+                        Ao colar, o bot tenta detectar nome, custo, duração, alcance/raio, dano, CD, tipos, cargas, limites e penalidades.
+                      </small>
+                    </div>
+
+                    <div class="spellActions">
+                      <button type="button" id="btnParsePastedSpell">Auto preencher com texto colado</button>
+                    </div>
+                  </div>
+
+                  <div class="formGrid">
+                    <div class="stat">
+                      <label for="spellType">Categoria</label>
+                      <select id="spellType" required>
+                        <option value="">Escolha...</option>
+                        <option value="simples">Simples</option>
+                        <option value="complexa">Complexa</option>
+                        <option value="avancada">Avançada</option>
+                      </select>
+                    </div>
+
+                    <div class="stat" id="spellGradeWrap" hidden>
+                      <label for="spellGrade">Grau</label>
+                      <select id="spellGrade" required></select>
+                    </div>
+
+                    <div class="stat">
+                      <label for="spellKind">Tipo da magia</label>
+                      <select id="spellKind" required>
+                        <option value="">Escolha...</option>
+                        <option value="dano">Dano direto</option>
+                        <option value="area">Área / zona</option>
+                        <option value="cura">Cura</option>
+                        <option value="buff">Buff</option>
+                        <option value="debuff">Debuff</option>
+                        <option value="controle">Controle</option>
+                        <option value="encantamento">Encantamento</option>
+                        <option value="transformacao">Transformação</option>
+                        <option value="invocacao">Invocação</option>
+                        <option value="conjuracao">Conjuração / criação</option>
+                        <option value="efeito">Efeito especial</option>
+                        <option value="copia">Cópia / roubo de magia</option>
+                        <option value="protecao">Proteção / barreira</option>
+                        <option value="movimento">Movimento / teleporte</option>
+                        <option value="ilusao">Ilusão</option>
+                        <option value="informacao">Informação / detecção</option>
+                        <option value="necromancia">Vida / morte / alma</option>
+                        <option value="reacao">Reação / contra-magia</option>
+                        <option value="multi">Mais de um tipo</option>
+                      </select>
+                    </div>
+
+                    <div class="stat" id="spellKindCountWrap" hidden>
+                      <label for="spellKindCount">Quantidade de tipos</label>
+                      <input id="spellKindCount" type="number" min="1" max="6" step="1" inputmode="numeric" value="2" />
+                      <small class="spellBotHint">Limite: 6 tipos.</small>
+                    </div>
+
+                    <div class="stat">
+                      <label for="spellName">Nome</label>
+                      <input id="spellName" type="text" placeholder="Ex: Ice Rain" spellcheck="false" />
+                    </div>
+
+                    <div class="stat">
+                      <label for="spellCost">Custo atual em PM</label>
+                      <input id="spellCost" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex: 15" />
+                    </div>
+                  </div>
+                                    <div id="spellMultiKindWrap" class="spellMultiKindWrap" hidden>
+                    <p class="spellFieldTitle">Tipos escolhidos</p>
+                    <div id="spellMultiKindGrid" class="spellMultiKindGrid"></div>
+                  </div>
+
+                  <div id="spellDynamicFields" class="spellDynamicFields">
+                    <div class="spellFieldGroup" data-spell-field-group="range" hidden>
+                      <p class="spellFieldTitle">Alcance / área</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellRangeMode">Raio ou alcance</label>
+                          <select id="spellRangeMode">
+                            <option value="alcance">Alcance</option>
+                            <option value="raio">Raio</option>
+                            <option value="pessoal">Pessoal</option>
+                          </select>
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellRangeMeters">Metros</label>
+                          <input id="spellRangeMeters" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex: 10" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellAreaShape">Formato / alvo</label>
+                          <input id="spellAreaShape" type="text" placeholder="Ex: círculo, cone, linha, alvo único, pessoal..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="duration" hidden>
+                      <p class="spellFieldTitle">Duração</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellDuration">Duração escrita</label>
+                          <input id="spellDuration" type="text" placeholder="Ex: 3 rodadas / instantânea" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellRounds">Rodadas</label>
+                          <input id="spellRounds" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex: 3" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="damage" hidden>
+                      <p class="spellFieldTitle">Dano</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellDamage">Dano principal</label>
+                          <input id="spellDamage" type="text" placeholder="Ex: 3d8, 2d6 por rodada, 3d6 pedras cada uma 1d4..." spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellExtraDamage">Dano extra / secundário</label>
+                          <input id="spellExtraDamage" type="text" placeholder="Ex: +1d4 fogo +1d4 água, 3d6 salto..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="heal" hidden>
+                      <p class="spellFieldTitle">Cura</p>
+                      <div class="stat">
+                        <label for="spellHeal">Cura</label>
+                        <input id="spellHeal" type="text" placeholder="Ex: 2d6, 3d12..." spellcheck="false" />
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="save" hidden>
+                      <p class="spellFieldTitle">Teste / resistência</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellSave">Teste / CD</label>
+                          <input id="spellSave" type="text" placeholder="Ex: Reflexos CD 14 + mod INT / RES CD 10 + INT" spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellSaveEffect">Resultado do teste</label>
+                          <input id="spellSaveEffect" type="text" placeholder="Ex: passa toma metade, falha fica atordoado..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="buff" hidden>
+                      <p class="spellFieldTitle">Buff</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellBuffs">Quantidade de buffs</label>
+                          <input id="spellBuffs" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex: 1" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellBuffText">O que melhora</label>
+                          <input id="spellBuffText" type="text" placeholder="Ex: +2 esquiva, imunidade da chuva, bônus de dano..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="debuff" hidden>
+                      <p class="spellFieldTitle">Debuff / controle</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellDebuffs">Quantidade de debuffs</label>
+                          <input id="spellDebuffs" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex: 1" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellDebuffText">O que causa</label>
+                          <input id="spellDebuffText" type="text" placeholder="Ex: -2 CA, atordoado, lento, rouba buff..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="enchant" hidden>
+                      <p class="spellFieldTitle">Encantamento</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellEnchantTarget">Alvo encantado</label>
+                          <input id="spellEnchantTarget" type="text" placeholder="Ex: espada, arma cortante, armadura, item..." spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellEnchantEffect">Efeito do encantamento</label>
+                          <input id="spellEnchantEffect" type="text" placeholder="Ex: vapor, marca de imunidade, elemento na arma..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="transform" hidden>
+                      <p class="spellFieldTitle">Transformação</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellTransformTarget">Transforma o quê?</label>
+                          <input id="spellTransformTarget" type="text" placeholder="Ex: corpo, arma, pele, energia..." spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellTransformStats">Mudanças / status</label>
+                          <input id="spellTransformStats" type="text" placeholder="Ex: núcleo elétrico, aura, +cargas, penalidade pós-uso..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="summon" hidden>
+                      <p class="spellFieldTitle">Invocação</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellSummon">Invocação criada</label>
+                          <input id="spellSummon" type="text" placeholder="Ex: sapo mágico de 15 cm" spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellSummonBehavior">Comportamento</label>
+                          <input id="spellSummonBehavior" type="text" placeholder="Ex: persegue inimigo usando magia e tenta linguada" spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="copy" hidden>
+                      <p class="spellFieldTitle">Cópia / roubo de magia</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellCopyLimit">Limite do que copia</label>
+                          <input id="spellCopyLimit" type="text" placeholder="Ex: copia até Simples UP 3; superiores ficam enfraquecidas" spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellCopyTypes">Tipos copiáveis</label>
+                          <input id="spellCopyTypes" type="text" placeholder="Ex: Encantamento, Buff e Debuff; não copia Transformação/Emissão" spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellCopyStorage">Armazenamento / uso</label>
+                          <input id="spellCopyStorage" type="text" placeholder="Ex: vira esfera, só guarda 1 magia, ativa ao quebrar" spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="resource" hidden>
+                      <p class="spellFieldTitle">Cargas / marcas / custo extra</p>
+                      <div class="formGrid">
+                        <div class="stat">
+                          <label for="spellCharges">Cargas / marcas</label>
+                          <input id="spellCharges" type="text" placeholder="Ex: máx 6 cargas, até 2 marcas, marca custa 3 PM..." spellcheck="false" />
+                        </div>
+
+                        <div class="stat">
+                          <label for="spellDrawback">Custo extra / penalidade</label>
+                          <input id="spellDrawback" type="text" placeholder="Ex: sofre 1d8 por carga, -2 testes por 1 rodada..." spellcheck="false" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="spellFieldGroup" data-spell-field-group="effect" hidden>
+                      <p class="spellFieldTitle">Efeito especial</p>
+                      <div class="stat">
+                        <label for="spellEffectLimits">Limites e condições</label>
+                        <input id="spellEffectLimits" type="text" placeholder="Ex: afeta só magia ativa, aliados marcados são imunes..." spellcheck="false" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="formGrid">
+                    <div class="stat">
+                      <label for="spellChannelRounds">Canalização</label>
+                      <input id="spellChannelRounds" type="number" min="0" step="1" inputmode="numeric" placeholder="Rodadas, se tiver" />
+                    </div>
+                  </div>
+
+                  <div class="stat">
+                    <label for="spellDescription">Descrição completa da magia</label>
+                    <textarea
+                      id="spellDescription"
+                      class="noteArea spellTextArea"
+                      placeholder="Cole aqui a magia inteira. O bot tenta ler dano, duração, alcance, CD, cargas, cópia, penalidades e limites..."
+                      spellcheck="false"
+                    ></textarea>
+                  </div>
+
+                  <div class="spellActions">
+                    <button type="submit" id="btnAnalyzeSpell">Analisar magia</button>
+                    <button type="button" id="btnClearSpell">Limpar</button>
+                    <button type="button" id="btnCopySpell">Copiar ficha</button>
+                    <button type="button" id="btnSendSpellToNotes">Adicionar às notas</button>
+                  </div>
+                </form>
+              </section>
+
+              <aside class="spellBotBox" aria-label="Resposta do bot">
+                <h3>Resposta do bot</h3>
+                <div id="spellBotOutput" class="spellBotOutput" aria-live="polite">
+                  <div class="spellBotMessage">
+                    Escolha a categoria e cole a descrição completa. A análise aparece aqui.
+                  </div>
+                </div>
+
+                <div class="sectionTitle">
+                  <h2>Referência rápida</h2>
+                  <div class="chips"><span class="chip" id="spellCurrentRuleChip">sem tipo</span></div>
+                </div>
+
+                <div class="spellRulesList" id="spellRulesPreview"></div>
+              </aside>
+            </div>
+          </div>
+        </section>
       </div>
 
       <footer class="footerLine" aria-label="Rodapé do cartão">
@@ -805,5 +1176,6 @@
   <script src="./racas.js" defer></script>
   <script src="./calculos-personagem.js" defer></script>
   <script src="./script.js" defer></script>
+  <script src="./criacao-magias.js" defer></script>
 </body>
 </html>
