@@ -1282,10 +1282,10 @@
           .split("\n")
           .map((line) => line.trim())
           .filter(Boolean);
-    
+      
         for (const line of lines) {
           const lower = normalizeText(line);
-    
+      
           if (
             lower.includes("custo") ||
             lower.includes("duracao") ||
@@ -1293,19 +1293,23 @@
             lower.includes("alcance") ||
             lower.includes("tipo") ||
             lower.includes("descricao") ||
-            lower.includes("descrição")
+            lower.includes("descrição") ||
+            lower.includes("efeitos da transformacao") ||
+            lower.includes("efeitos da transformação") ||
+            lower === "efeito" ||
+            lower === "efeitos"
           ) {
             continue;
           }
-    
+      
           return line
             .replace(/^magia\s*[:\-]\s*/i, "")
             .replace(/\*\*/g, "")
-            .replace(/\([^)]*\)/g, "")
+            .replace(/[{}[\]]/g, " ")
             .replace(/,$/, "")
             .trim();
         }
-    
+      
         return "";
       }
     
@@ -1346,10 +1350,29 @@
       }
     
       function extractDurationText(text) {
-        const line = extractRegex(text, /dura[cç][aã]o\s*[:\-]?\s*([^\n|,]+)/i);
-        if (line) return line.trim();
-    
-        const rounds = extractRoundsFromText(text);
+        const raw = String(text || "");
+      
+        const bracket =
+          extractRegex(raw, /\{?\s*dura[cç][aã]o\s*[:\-]?\s*([^{}\[\]\n,]+)/i) ||
+          extractRegex(raw, /\[\s*dura[cç][aã]o\s*[:\-]?\s*([^\]\n,]+)/i);
+      
+        if (bracket) {
+          return bracket
+            .replace(/\s*custo\s*:.*/i, "")
+            .replace(/\s*alcance\s*:.*/i, "")
+            .trim();
+        }
+      
+        const line = extractRegex(raw, /dura[cç][aã]o\s*[:\-]?\s*([^\n|,\]}]+)/i);
+      
+        if (line) {
+          return line
+            .replace(/\s*custo\s*:.*/i, "")
+            .replace(/\s*alcance\s*:.*/i, "")
+            .trim();
+        }
+      
+        const rounds = extractRoundsFromText(raw);
         return rounds != null ? `${rounds} rodadas` : "";
       }
     
@@ -1588,63 +1611,197 @@
       }
     
       function buildBalancedSpellText(data, rule, suggestedPm = null) {
-        const cost = data.cost ?? suggestedPm;
-        const lines = [];
-
-        lines.push(data.name || "Magia sem nome");
-        lines.push(`Categoria: ${rule ? `${rule.typeLabel} ${rule.gradeLabel}` : "—"}`);
-        lines.push(`Custo: ${cost == null ? "—" : `${cost} PM`}`);
-
-        if (data.rangeMode === "pessoal") {
-          lines.push("Alcance: pessoal");
-        } else if (data.rangeMeters != null) {
-          lines.push(`${capitalize(data.rangeMode || "alcance")}: ${data.rangeMeters}m`);
+        const raw = String(data.description || data.pasteText || "").trim();
+        const normalized = normalizeText(raw);
+      
+        const originalCost = data.cost;
+        const finalCost = suggestedPm ?? data.cost;
+        const costWasRaised = originalCost != null && suggestedPm != null && suggestedPm > originalCost;
+      
+        function cleanValue(value) {
+          return String(value || "")
+            .replace(/[{}[\]]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
         }
-
-        if (data.areaShape) lines.push(`Área/Formato: ${data.areaShape}`);
-        if (data.duration || data.rounds != null) lines.push(`Duração: ${data.duration || `${data.rounds} rodadas`}`);
-
-        const effects = [];
-
-        if (data.damage) effects.push(`Causa ${data.damage}.`);
-        if (data.extraDamage) effects.push(`Dano extra: ${data.extraDamage}.`);
-        if (data.heal) effects.push(`Cura ${data.heal}.`);
-        if (data.buffText) effects.push(`Bônus: ${data.buffText}.`);
-        if (data.debuffText) effects.push(`Penalidade/controle: ${data.debuffText}.`);
-        if (data.enchantTarget || data.enchantEffect) {
-          effects.push(`Encanta ${data.enchantTarget || "o alvo"}: ${data.enchantEffect || "efeito definido pela descrição"}.`);
+      
+        function cleanNameFromRaw(text) {
+          const first = String(text || "")
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)[0] || "";
+      
+          const beforeParen = first.split("(")[0]?.trim();
+          const beforeBrace = beforeParen.split("{")[0]?.trim();
+          const beforeCost = beforeBrace.split("[")[0]?.trim();
+      
+          if (beforeCost && !normalizeText(beforeCost).includes("efeitos da transformacao")) {
+            return beforeCost;
+          }
+      
+          return data.name && !normalizeText(data.name).includes("efeitos da transformacao")
+            ? data.name
+            : "Magia sem nome";
         }
-        if (data.transformTarget || data.transformStats) {
-          effects.push(`Transformação em ${data.transformTarget || "usuário"}: ${data.transformStats || "efeito definido pela descrição"}.`);
+      
+        function extractOriginalEffects(text) {
+          const afterTitle = String(text || "").split(/efeitos da transforma[cç][aã]o\s*:/i)[1];
+          const source = afterTitle || text;
+      
+          return source
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => line.replace(/^#+\s*/, "").replace(/^[-•]\s*/, "").trim())
+            .filter(Boolean)
+            .filter((line) => {
+              const n = normalizeText(line);
+              return !n.includes("efeitos da transformacao") &&
+                !n.startsWith("alcance") &&
+                !n.startsWith("duracao") &&
+                !n.startsWith("duração") &&
+                !n.startsWith("custo");
+            });
         }
-        if (data.summon || data.summonBehavior) {
-          effects.push(`Invocação: ${data.summon || "criatura/estrutura"}; ${data.summonBehavior || "defina comportamento, vida, CA e duração"}.`);
+      
+        function hasEffectLike(effects, ...terms) {
+          return effects.some((effect) => {
+            const n = normalizeText(effect);
+            return terms.some((term) => n.includes(normalizeText(term)));
+          });
         }
-        if (data.copyLimit || data.copyTypes || data.copyStorage) {
-          effects.push(`Cópia/Roubo: ${[data.copyLimit, data.copyTypes, data.copyStorage].filter(Boolean).join(" ") || "defina limite, tipo e armazenamento"}.`);
-        }
-
-        if (!effects.length) {
-          effects.push(data.description || data.pasteText || "Descreva o efeito principal da magia.");
-        }
-
-        lines.push("Efeito:");
-        effects.forEach((effect) => lines.push(`- ${effect}`));
-
-        if (data.save) lines.push(`Teste/CD: ${data.save}`);
-        if (data.saveEffect) lines.push(`Resultado: ${data.saveEffect}`);
-
+      
+        const name = cleanNameFromRaw(raw);
+        const originalEffects = extractOriginalEffects(raw);
+      
+        const isTransformation = data.kinds.includes("transformacao") || normalized.includes("transformacao") || normalized.includes("transformação");
+        const isAdvanced = data.type === "avancada" || rule?.type === "avancada";
+      
+        const finalEffects = [];
         const limits = [];
-        if (data.effectLimits) limits.push(data.effectLimits);
-        if (data.charges) limits.push(data.charges);
-        if (data.drawback) limits.push(data.drawback);
-        if (data.channelRounds != null) limits.push(`Canalização: ${data.channelRounds} rodada(s).`);
-
+      
+        const rangeText =
+          data.rangeMode === "pessoal" || normalized.includes("alcance poessoal") || normalized.includes("alcance pessoal")
+            ? "pessoal"
+            : data.rangeMeters != null
+              ? `${data.rangeMeters}m`
+              : "";
+      
+        let durationText = cleanValue(data.duration || (data.rounds != null ? `${data.rounds} rodadas` : ""));
+        durationText = durationText
+          .replace(/\s*custo\s*:.*/i, "")
+          .replace(/\s*\[custo\s*:.*/i, "")
+          .replace(/(\d+)rodadas/i, "$1 rodadas")
+          .trim();
+      
+        if (!durationText && normalized.includes("10rodadas")) durationText = "10 rodadas";
+      
+        // Versão especial para transformação muito carregada, como Transcendência do Vazio.
+        if (isTransformation && isAdvanced) {
+          if (hasEffectLike(originalEffects, "imune", "medo", "controle mental", "possessao", "possessão", "alma")) {
+            finalEffects.push("Você fica imune a medo, controle mental e possessão. Efeitos que afetam a alma ainda podem funcionar se forem de origem divina, lendária ou superior.");
+          }
+      
+          if (hasEffectLike(originalEffects, "+4 de dano", "escuridao", "escuridão", "necromancia")) {
+            finalEffects.push("Suas magias de escuridão ou necromancia causam +4 de dano.");
+          }
+      
+          if (hasEffectLike(originalEffects, "reducao de dano", "redução de dano", "fonte nao divina", "fonte não divina")) {
+            finalEffects.push("Você recebe redução de dano 10 contra fontes não divinas.");
+          }
+      
+          if (hasEffectLike(originalEffects, "recupera 3 pm", "pm por rodada")) {
+            finalEffects.push("Uma vez por rodada, você recupera 2 PM. Essa recuperação não pode ultrapassar seu limite máximo de PM.");
+            limits.push("A recuperação de PM foi reduzida de 3 para 2 por rodada para não gerar recurso demais durante a transformação.");
+          }
+      
+          if (hasEffectLike(originalEffects, "ataques fisicos", "ataques físicos", "dano espiritual")) {
+            finalEffects.push("Seus ataques físicos causam +1d10 de dano espiritual. Adicione o modificador de FOR apenas uma vez por turno.");
+            limits.push("O dano físico extra foi limitado para evitar acúmulo forte em múltiplos ataques.");
+          }
+      
+          if (hasEffectLike(originalEffects, "inimigos num raio", "sofrem -2", "-5 em ataques")) {
+            finalEffects.push("Inimigos em um raio de 10m sofrem -2 em testes de resistência e -2 em ataques enquanto permanecerem na área.");
+            limits.push("O debuff de ataque foi reduzido de -5 para -2. O alvo pode fazer um teste de RES no início do turno para ignorar esse efeito até o próximo turno.");
+          }
+      
+          if (hasEffectLike(originalEffects, "cai inconsciente", "3d4 de dano hpp")) {
+            limits.push("Ao término, você cai inconsciente por 1 hora e sofre 3d4 de dano HPP.");
+          }
+      
+          if (normalized.includes("2d4") && normalized.includes("hpp") && normalized.includes("rodada")) {
+            limits.push("Enquanto a transformação estiver ativa, você sofre 2d4 de dano HPP por rodada. Esse custo não pode ser reduzido por resistência ou imunidade.");
+          }
+      
+          limits.push("Você não pode receber cura de PM extra de outras fontes enquanto esta transformação estiver ativa.");
+          limits.push("Não pode ser usada novamente até terminar um descanso longo ou equivalente definido pelo mestre.");
+      
+          if (!finalEffects.length) {
+            originalEffects.slice(0, 4).forEach((effect) => finalEffects.push(effect));
+          }
+        } else {
+          // Versão genérica para outras magias.
+          const maxEffects = data.kinds.length >= 5 ? 4 : 5;
+      
+          originalEffects.slice(0, maxEffects).forEach((effect) => {
+            let adjusted = effect;
+      
+            if (normalizeText(adjusted).includes("qualquer efeito")) {
+              adjusted = adjusted.replace(/qualquer efeito/gi, "efeitos comuns");
+              limits.push("Efeitos absolutos foram trocados por efeitos comuns para evitar imunidade total.");
+            }
+      
+            if (normalizeText(adjusted).includes("-5 em ataques")) {
+              adjusted = adjusted.replace(/-5 em ataques/gi, "-2 em ataques");
+              limits.push("Penalidade de ataque reduzida para -2.");
+            }
+      
+            finalEffects.push(adjusted);
+          });
+      
+          if (originalEffects.length > maxEffects) {
+            limits.push(`A magia tinha ${originalEffects.length} efeitos principais. Mantive ${maxEffects} para reduzir excesso de tipos.`);
+          }
+        }
+      
+        if (!finalEffects.length) {
+          if (data.damage) finalEffects.push(`Causa ${cleanValue(data.damage)}.`);
+          if (data.extraDamage) finalEffects.push(`Dano extra: ${cleanValue(data.extraDamage)}.`);
+          if (data.heal) finalEffects.push(`Cura ${cleanValue(data.heal)}.`);
+          if (!finalEffects.length) finalEffects.push(cleanValue(raw) || "Descreva o efeito principal da magia.");
+        }
+      
+        if (costWasRaised) {
+          limits.unshift(`Custo ajustado de ${originalCost} PM para ${finalCost} PM, porque o impacto ficou acima do custo original.`);
+        }
+      
+        const lines = [];
+      
+        lines.push(name);
+        lines.push(`Categoria: ${rule ? `${rule.typeLabel} ${rule.gradeLabel}` : "—"}`);
+        lines.push(`Custo: ${finalCost == null ? "—" : `${finalCost} PM`}`);
+        if (rangeText) lines.push(`Alcance: ${rangeText}`);
+        if (durationText) lines.push(`Duração: ${durationText}`);
+      
+        lines.push("");
+        lines.push("Efeito:");
+        finalEffects.forEach((effect) => lines.push(`- ${effect}`));
+      
+        if (data.save && !normalizeText(data.save).includes("inimigos num raio")) {
+          lines.push("");
+          lines.push(`Teste/CD: ${cleanValue(data.save)}`);
+        }
+      
+        if (data.saveEffect) {
+          lines.push(`Resultado: ${cleanValue(data.saveEffect)}`);
+        }
+      
         if (limits.length) {
-          lines.push("Limitações:");
+          lines.push("");
+          lines.push("Limitações e ajustes:");
           limits.forEach((limit) => lines.push(`- ${limit}`));
         }
-
+      
         return lines.join("\n");
       }
 
