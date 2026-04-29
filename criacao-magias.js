@@ -3,7 +3,7 @@
 
   const $ = (id) => document.getElementById(id);
 
-  const STORAGE_KEY = "rpg_card_spell_creator_v6";
+  const STORAGE_KEY = "rpg_card_spell_creator_v7_balanced";
   const SAVE_DELAY = 180;
 
   const RULES = {
@@ -430,19 +430,26 @@
     const raw = typeof dataOrText === "string" ? dataOrText : getAllRawText(dataOrText);
     const text = normalizeText(raw);
     const kinds = new Set();
-
+  
     const has = (...terms) => terms.some((term) => text.includes(normalizeText(term)));
-
+  
     const weaponEnchant =
       has("encantamento de arma", "arma cortante", "espada", "lamina", "lâmina") &&
       has("encantamento", "encanta", "aura", "canaliza", "ataques com a espada", "ataque com a espada");
-
+  
     if (weaponEnchant) {
       return ["encantamento"];
     }
-
-    if (has("dano", "1d", "2d", "3d", "4d", "5d", "6d", "7d", "8d", "10d")) kinds.add("dano");
-
+  
+    // Dano direto
+    if (
+      has("dano", "sangramento", "eletrico", "elétrico", "igneo", "ígneo", "necrotico", "necrótico") ||
+      /\b\d+\s*d\s*\d+\b/i.test(raw)
+    ) {
+      kinds.add("dano");
+    }
+  
+    // Área / zona
     if (
       has(
         "area",
@@ -455,35 +462,334 @@
         "nuvem",
         "chuva",
         "nevasca",
+        "onda",
         "ao redor",
+        "em volta",
         "inimigos em",
         "em 5m",
         "em 10m",
-        "10m"
+        "10m",
+        "aumenta o alcance",
+        "aumenta o alcanse"
       )
     ) {
       kinds.add("area");
     }
-
-    if (has("cura", "curar", "recupera hp", "recupera vida")) kinds.add("cura");
-    if (has("buff", "bonus", "bônus", "imune", "imunidade", "esquiva", "marca de imunidade")) kinds.add("buff");
-    if (has("debuff", "-2", "reduz", "atordoado", "rouba", "absorve", "ca por 1 rodada")) kinds.add("debuff");
-    if (has("atordoado", "paralisa", "imobiliza", "controle", "stun")) kinds.add("controle");
-    if (has("encantamento", "encanta", "arma", "espada", "lamina", "lâmina")) kinds.add("encantamento");
-    if (has("transforma", "transformacao", "transformação", "se torna", "nucleo", "núcleo", "sobrecarga")) kinds.add("transformacao");
-    if (has("invoco", "invoca", "criatura", "sapo", "servo", "familiar")) kinds.add("invocacao");
-    if (has("copia", "copiar", "rouba", "roubar", "absorve magia", "magia roubada")) kinds.add("copia");
-    if (has("barreira", "escudo", "protege", "protecao", "proteção")) kinds.add("protecao");
-    if (has("teleporte", "troca de posição", "trocar posição", "trocar posicao", "movimento")) kinds.add("movimento");
-    if (has("ilusao", "ilusão", "miragem", "imagem falsa")) kinds.add("ilusao");
-    if (has("detectar", "detecção", "deteccao", "informação", "informacao", "revelar")) kinds.add("informacao");
-    if (has("morte", "alma", "vida", "necromancia", "reviver", "ressuscitar")) kinds.add("necromancia");
-    if (has("reação", "reacao", "contra magia", "counter", "anular magia")) kinds.add("reacao");
-
+  
+    // Cura
+    if (
+      has(
+        "cura",
+        "curar",
+        "curado",
+        "recupera hp",
+        "recupera vida",
+        "restaura vida",
+        "regenera",
+        "regeneração"
+      )
+    ) {
+      kinds.add("cura");
+    }
+  
+    // Buff
+    if (
+      has(
+        "buff",
+        "bonus",
+        "bônus",
+        "ganha",
+        "recebe",
+        "aumenta",
+        "+2 de acerto",
+        "+ 2 de acerto",
+        "+4 de dano",
+        "+ 4 de dano",
+        "acerto",
+        "imune",
+        "imunidade",
+        "esquiva",
+        "marca de imunidade",
+        "armadura",
+        "ca "
+      )
+    ) {
+      kinds.add("buff");
+    }
+  
+    // Debuff
+    if (
+      has(
+        "debuff",
+        "-2",
+        "reduz",
+        "diminui",
+        "rouba",
+        "roubar",
+        "absorve",
+        "pego",
+        "pegar",
+        "perde",
+        "fica com",
+        "ca por 1 rodada",
+        "status mais forte",
+        "1/4 do status",
+        "1 4 do status"
+      )
+    ) {
+      kinds.add("debuff");
+    }
+  
+    // Controle
+    if (
+      has(
+        "atordoado",
+        "paralisa",
+        "paralisado",
+        "imobiliza",
+        "imobilizado",
+        "controle",
+        "stun",
+        "não pode agir",
+        "nao pode agir",
+        "perde ação",
+        "perde acao"
+      )
+    ) {
+      kinds.add("controle");
+    }
+  
+    // Encantamento
+    if (
+      has(
+        "encantamento",
+        "encanta",
+        "encantar",
+        "arma",
+        "espada",
+        "lamina",
+        "lâmina",
+        "petrificando ele na sua arma",
+        "na sua arma",
+        "ataques com",
+        "arma ou com o que estiver usando para bater"
+      )
+    ) {
+      kinds.add("encantamento");
+    }
+  
+    // Transformação / forma / armadura mágica
+    if (
+      has(
+        "transforma",
+        "transformacao",
+        "transformação",
+        "se torna",
+        "nucleo",
+        "núcleo",
+        "sobrecarga",
+        "armadura",
+        "armadura de sangue",
+        "armadura de raios",
+        "armadura de trovao",
+        "armadura de trovão",
+        "fica com uma armadura",
+        "forma"
+      )
+    ) {
+      kinds.add("transformacao");
+    }
+  
+    // Invocação
+    if (
+      has(
+        "invoco",
+        "invoca",
+        "invocar",
+        "criatura",
+        "sapo",
+        "servo",
+        "familiar",
+        "obelisco",
+        "belisco",
+        "totem",
+        "construto"
+      )
+    ) {
+      kinds.add("invocacao");
+    }
+  
+    // Cópia / roubo / absorção de magia ou status
+    if (
+      has(
+        "copia",
+        "copiar",
+        "rouba",
+        "roubar",
+        "roubo",
+        "absorve magia",
+        "magia roubada",
+        "roubar a sombra",
+        "rouba a sombra",
+        "status mais forte",
+        "pego 1/4",
+        "pego 1 4",
+        "pegar 1/4",
+        "pegar 1 4"
+      )
+    ) {
+      kinds.add("copia");
+    }
+  
+    // Proteção / barreira
+    if (
+      has(
+        "barreira",
+        "escudo",
+        "protege",
+        "protecao",
+        "proteção",
+        "ca 10",
+        "classe de armadura",
+        "armadura"
+      )
+    ) {
+      kinds.add("protecao");
+    }
+  
+    // Movimento / teleporte
+    if (
+      has(
+        "teleporte",
+        "teletransporta",
+        "teletransportar",
+        "teletransporte",
+        "teleportar",
+        "troca de posição",
+        "trocar posição",
+        "trocar posicao",
+        "movimento",
+        "move-se",
+        "move se",
+        "flutuando"
+      )
+    ) {
+      kinds.add("movimento");
+    }
+  
+    // Ilusão / sombra
+    if (
+      has(
+        "ilusao",
+        "ilusão",
+        "miragem",
+        "imagem falsa",
+        "sombra",
+        "sombrio",
+        "sombria",
+        "sombril"
+      )
+    ) {
+      kinds.add("ilusao");
+    }
+  
+    // Informação / detecção
+    if (
+      has(
+        "detectar",
+        "detecção",
+        "deteccao",
+        "informação",
+        "informacao",
+        "revelar",
+        "rastrear",
+        "localizar"
+      )
+    ) {
+      kinds.add("informacao");
+    }
+  
+    // Necromancia / sangue / vida / morte / alma
+    if (
+      has(
+        "morte",
+        "alma",
+        "vida",
+        "necromancia",
+        "reviver",
+        "ressuscitar",
+        "sangue",
+        "sangramento",
+        "controlar o proprio sangue",
+        "controlar o próprio sangue"
+      )
+    ) {
+      kinds.add("necromancia");
+    }
+  
+    // Reação / contra-magia
+    if (
+      has(
+        "reação",
+        "reacao",
+        "contra magia",
+        "contra-magia",
+        "counter",
+        "anular magia",
+        "quando uma magia",
+        "caso seja a magia",
+        "ao ser alvo"
+      )
+    ) {
+      kinds.add("reacao");
+    }
+  
+    // Conjuração / criação de objeto, estrutura ou zona
+    if (
+      has(
+        "cria","criar","conjura","conjurar","obelisco","totem","estrutura","pilar","objeto mágico","objeto magico"
+      )
+    ) {
+      kinds.add("conjuracao");
+    }
+  
+    // Regra especial
+    if (
+      has(
+        "custo da magia mais metade",
+        "custando o custo da magia mais metade",
+        "por teleporte",
+        "por aliado",
+        "por inimigo",
+        "uso único",
+        "uso unico",
+        "duas vezes",
+        "intervalo de 1 rodada",
+        "ativa automaticamente"
+      )
+    ) {
+      kinds.add("efeito");
+    }
+  
+    // Roubo de status deve sempre contar como buff + debuff.
+    if (
+      has("status", "for", "des", "res", "int", "sab", "car", "acerto", "ca") &&
+      has("rouba", "roubar", "pego", "pegar", "reduz", "fica com")
+    ) {
+      kinds.add("buff");
+      kinds.add("debuff");
+    }
+  
+    // Magia com teste normalmente tem efeito ofensivo/controle.
+    if (has("teste", "cd", "reflexo", "reflexos", "res", "des")) {
+      if (has("paralisa", "paralisado", "atordoado", "rouba", "reduz", "inimigo")) {
+        kinds.add("controle");
+      }
+    }
+  
     if (!kinds.size) kinds.add("efeito");
     return Array.from(kinds);
   }
-
   function inferMissingNumbers(data) {
     const raw = getAllRawText(data);
     const normalized = normalizeText(raw);
@@ -612,7 +918,7 @@
     const findings = [];
     const text = getAllText(data);
     const has = (...terms) => terms.some((term) => text.includes(normalizeText(term)));
-
+  
     if (isMinorWeaponEnchantment(data)) {
       findings.push({
         minType: null,
@@ -621,77 +927,246 @@
       });
       return findings;
     }
-
-    if (has("copia", "copiar", "rouba", "roubar", "absorve magia", "magia roubada")) {
+  
+    // Cópia, roubo ou absorção de magia/status.
+    if (
+      has(
+        "copia",
+        "copiar",
+        "rouba",
+        "roubar",
+        "roubo",
+        "absorve magia",
+        "magia roubada",
+        "roubar a sombra",
+        "rouba a sombra",
+        "status mais forte",
+        "pego 1/4",
+        "pego 1 4",
+        "pegar 1/4",
+        "pegar 1 4"
+      )
+    ) {
       findings.push({
         minType: "complexa",
         weight: 0.72,
-        text: "Cópia/roubo de magia é efeito complexo. Precisa de teste, limite do que copia, armazenamento e regra para magia superior.",
+        text: "Cópia/roubo é efeito complexo. Precisa de teste, limite do que rouba/copia, duração e regra contra alvos fortes.",
       });
     }
-
-    if (has("invoco", "invoca", "criatura", "sapo", "servo", "familiar")) {
+  
+    // Roubo de status é mais forte que roubo narrativo comum.
+    if (
+      has("roubar a sombra", "rouba a sombra", "status mais forte", "1/4 do status", "1 4 do status", "fica com") ||
+      (has("rouba", "roubar", "pego", "pegar") && has("status", "for", "des", "res", "int", "sab", "car"))
+    ) {
       findings.push({
         minType: "complexa",
-        weight: 0.50,
-        text: "Invocação precisa definir tamanho, comportamento, duração, alcance e se pode agir sozinha.",
+        weight: 0.66,
+        text: "Roubo de status é forte. Precisa de teste, duração curta, limite de atributo roubado e regra de acúmulo.",
       });
     }
-
-    if (has("por rodada", "descargas constantes", "inimigos em 5m", "chuva", "nevasca", "nuvem", "área", "area")) {
+  
+    // Invocação, totem, obelisco ou criatura.
+    if (
+      has(
+        "invoco",
+        "invoca",
+        "invocar",
+        "criatura",
+        "sapo",
+        "servo",
+        "familiar",
+        "obelisco",
+        "belisco",
+        "totem",
+        "construto"
+      )
+    ) {
+      findings.push({
+        minType: "complexa",
+        weight: 0.55,
+        text: "Invocação/estrutura em campo precisa definir vida, CA, duração, alcance, movimento e se age sozinha.",
+      });
+    }
+  
+    // Magia que interage com outras magias ou aumenta alcance/custo.
+    if (
+      has("quando uma magia", "magia de buff", "magia de cura", "uso unico", "uso único", "duas vezes", "intervalo de 1 rodada") ||
+      has("aumenta o alcance", "aumenta o alcanse", "custo da magia mais metade", "custando o custo da magia mais metade")
+    ) {
       findings.push({
         minType: "complexa",
         weight: 0.58,
-        text: "Efeito em área por rodadas pesa mais que dano único.",
+        text: "Interagir com outra magia ou ampliar alcance é forte. Precisa de limite de uso, custo extra e duração clara.",
       });
     }
-
-    if (has("salta para", "até 2 inimigos", "ate 2 inimigos", "ricochete", "corrente")) {
+  
+    // Área, zona, dano contínuo ou dano por rodada.
+    if (
+      has(
+        "por rodada",
+        "por turno",
+        "descargas constantes",
+        "inimigos em 5m",
+        "chuva",
+        "nevasca",
+        "nuvem",
+        "área",
+        "area",
+        "raio",
+        "onda",
+        "ao redor",
+        "em volta"
+      )
+    ) {
+      findings.push({
+        minType: "complexa",
+        weight: 0.58,
+        text: "Área ou efeito por rodada pesa mais que efeito único. Defina se afeta uma vez, por turno ou por alvo.",
+      });
+    }
+  
+    // Dano em cadeia / múltiplos alvos.
+    if (
+      has(
+        "salta para",
+        "até 2 inimigos",
+        "ate 2 inimigos",
+        "ricochete",
+        "corrente",
+        "encadeia",
+        "outro alvo",
+        "múltiplos alvos",
+        "multiplos alvos"
+      )
+    ) {
       findings.push({
         minType: "complexa",
         weight: 0.50,
-        text: "Dano que salta para outros alvos aumenta bastante o impacto em combate.",
+        text: "Dano que passa para outros alvos aumenta muito o impacto. Limite quantidade de alvos e distância.",
       });
     }
-
+  
+    // Cargas, marcas e explosões.
     if (
-      has("carga", "cargas", "acumulo", "acúmulo") &&
-      has("explosao", "explosão", "consome carga", "consome cargas")
+      has("carga", "cargas", "marca", "marcas", "acumulo", "acúmulo") &&
+      has("explosao", "explosão", "consome carga", "consome cargas", "consome marca", "consome marcas")
     ) {
       findings.push({
         minType: "complexa",
         weight: 0.54,
-        text: "Sistema de cargas e explosão precisa de teto, custo e penalidade pós-uso.",
+        text: "Sistema de cargas/marcas precisa de teto, forma de ganho, custo para gastar e penalidade pós-uso.",
       });
     }
-
-    if (has("atordoado", "paralisa", "imobiliza", "stun")) {
+  
+    // Controle forte.
+    if (
+      has(
+        "atordoado",
+        "paralisa",
+        "paralisado",
+        "imobiliza",
+        "imobilizado",
+        "stun",
+        "não pode agir",
+        "nao pode agir",
+        "perde ação",
+        "perde acao"
+      )
+    ) {
       findings.push({
         minType: "complexa",
-        weight: 0.52,
-        text: "Atordoar ou travar ação é controle forte e precisa de CD/teste e duração curta.",
+        weight: 0.56,
+        text: "Controle que trava ação é forte. Precisa de CD/teste, duração curta e chance de resistir.",
       });
     }
-
+  
+    // Teleporte de si, aliado ou inimigo.
+    if (
+      has("teleporte", "teletransporta", "teletransportar", "teletransporte", "teleportar") &&
+      has("aliado", "inimigo", "teste", "des", "reflexo", "reflexos")
+    ) {
+      findings.push({
+        minType: "complexa",
+        weight: 0.46,
+        text: "Teleporte de aliado/inimigo é forte. Inimigo precisa de teste e limite de distância/alvos.",
+      });
+    }
+  
+    // Buff automático + dano/acerto.
+    if (
+      has("ativa automaticamente", "automaticamente") ||
+      (has("ganha", "recebe") && has("acerto") && has("dano"))
+    ) {
+      findings.push({
+        minType: "complexa",
+        weight: 0.58,
+        text: "Buff automático com acerto/dano extra pesa como magia complexa. Defina duração e custo de manutenção.",
+      });
+    }
+  
+    // Armadura mágica / transformação ofensiva.
+    if (
+      has("armadura", "armadura de sangue", "armadura de raios", "armadura de trovao", "armadura de trovão") &&
+      has("ganha", "dano", "acerto", "paralisado", "reflexo", "reflexos")
+    ) {
+      findings.push({
+        minType: "complexa",
+        weight: 0.62,
+        text: "Armadura ofensiva com bônus e efeito extra deve ser tratada como transformação/buff complexo.",
+      });
+    }
+  
+    // Imunidade.
     if (has("imune", "imunidade")) {
       findings.push({
         minType: "complexa",
         weight: 0.42,
-        text: "Imunidade precisa de custo, alvo e duração claros.",
+        text: "Imunidade precisa de tipo protegido, custo, alvo, duração e limite de uso.",
       });
     }
-
-    if (has("ressuscitar", "reviver", "apagar existencia", "apagar existência", "parar o tempo", "voltar no tempo")) {
+  
+    // Custo variável/escalável.
+    if (
+      has(
+        "por teleporte",
+        "por aliado",
+        "por inimigo",
+        "+2 por aliado",
+        "+2 por inimigo",
+        "custo da magia mais metade",
+        "custando o custo da magia mais metade"
+      )
+    ) {
+      findings.push({
+        minType: null,
+        weight: -0.10,
+        text: "Custo variável detectado. Isso ajuda a balancear, mas precisa estar escrito de forma clara.",
+      });
+    }
+  
+    // Efeitos de realidade, morte ou tempo.
+    if (
+      has(
+        "ressuscitar",
+        "reviver",
+        "apagar existencia",
+        "apagar existência",
+        "parar o tempo",
+        "voltar no tempo",
+        "morte instantanea",
+        "morte instantânea"
+      )
+    ) {
       findings.push({
         minType: "avancada",
         weight: 1.1,
-        text: "Efeito de morte/tempo/realidade tende a ser avançado.",
+        text: "Efeito de morte, tempo ou realidade tende a ser magia avançada.",
       });
     }
-
+  
     return findings;
   }
-
   function getHighestMinType(findings) {
     let highest = null;
 
@@ -934,19 +1409,19 @@
     const minorWeaponEnchant = isMinorWeaponEnchantment(data);
 
     if (data.cost == null) {
-      warnings.push(`Sem custo informado. Sugestão inicial: ${suggested} PM.`);
+      warnings.push(`Sem custo informado. Use como ponto de partida: ${suggested} PM.`);
     } else {
-      if (data.cost < rule.pm[0]) issues.push(`Custo abaixo da faixa do grau: mínimo ${rule.pm[0]} PM.`);
-      if (data.cost > rule.pm[1]) warnings.push(`Custo acima da faixa média: ${rule.pm[0]} a ${rule.pm[1]} PM.`);
+      if (data.cost < rule.pm[0]) issues.push(`Custo abaixo do mínimo deste grau: ${rule.pm[0]} PM.`);
+      if (data.cost > rule.pm[1]) warnings.push(`Custo acima da faixa deste grau: ${rule.pm[0]} a ${rule.pm[1]} PM.`);
 
       const diff = suggested - data.cost;
 
       if (minorWeaponEnchant && Math.abs(diff) <= 2) {
         good.push(`Custo ${data.cost} PM está justo para um encantamento de arma leve.`);
       } else if (diff >= 5 && power >= 1.05) {
-        issues.push(`Custo baixo para a quantidade de efeitos. Ajuste prático: subir de ${data.cost} PM para perto de ${suggested} PM.`);
+        issues.push(`Custo baixo para o impacto real. Sugestão: subir de ${data.cost} PM para perto de ${suggested} PM.`);
       } else if (diff >= 3 && power >= 0.85) {
-        warnings.push(`Custo um pouco baixo. Ajuste prático: subir de ${data.cost} PM para ${suggested} PM.`);
+        warnings.push(`Custo um pouco baixo. Sugestão: subir de ${data.cost} PM para ${suggested} PM.`);
       } else {
         good.push(`Custo ${data.cost} PM está aceitável para o conjunto descrito.`);
       }
@@ -956,7 +1431,7 @@
       if (data.rangeMode === "pessoal") {
         good.push("Alcance pessoal reduz o peso da magia.");
       } else if (data.rangeMeters == null) {
-        warnings.push("Preencha alcance ou raio em metros.");
+        warnings.push("Falta alcance/raio em metros. Sem isso o cálculo fica menos preciso.");
       } else if (data.rangeMeters > rule.alcance * (data.kinds.includes("area") ? 1.1 : 1)) {
         issues.push(`${capitalize(data.rangeMode)} acima da referência: ${data.rangeMeters}m usado, referência ${rule.alcance}m.`);
       } else {
@@ -968,7 +1443,7 @@
 
     if (groups.has("duration")) {
       if (data.rounds == null) {
-        warnings.push("Preencha a duração em rodadas.");
+        warnings.push("Falta duração em rodadas. Duração indefinida pesa mais no balanceamento.");
       } else if (data.rounds > rule.rodadas) {
         issues.push(`Duração acima da referência: ${data.rounds} rodadas, referência ${rule.rodadas}.`);
       } else {
@@ -978,7 +1453,7 @@
 
     if (groups.has("damage")) {
       if (!damage) {
-        warnings.push("O tipo escolhido usa dano, mas nenhum dano foi identificado.");
+        warnings.push("Este tipo usa dano, mas o bot não achou dados de dano no texto.");
       } else if (minorWeaponEnchant) {
         good.push("Dano extra baixo para encantamento de arma.");
       } else {
@@ -995,7 +1470,7 @@
 
     if (groups.has("heal")) {
       if (!heal) {
-        warnings.push("O tipo escolhido usa cura, mas nenhuma cura foi identificada.");
+        warnings.push("Este tipo usa cura, mas o bot não achou dados de cura no texto.");
       } else if (heal.avg > getLimitHealAvg(rule) * 1.25) {
         warnings.push(`Cura estimada alta: ${heal.raw}.`);
       } else {
@@ -1005,7 +1480,7 @@
 
     if (groups.has("save") && !weaponEnchant) {
       if (!data.save && !hasAnyText(data, "teste", "cd", "reflexos", "reflexo", "res", "des")) {
-        warnings.push("Efeito ofensivo/controle fica melhor com teste ou resistência.");
+        warnings.push("Adicione teste/CD ou resistência para efeito ofensivo, debuff ou controle.");
       } else {
         good.push("Teste/resistência detectado.");
       }
@@ -1013,19 +1488,19 @@
 
     if (groups.has("copy")) {
       if (!data.copyLimit && !hasAnyText(data, "simples up 3", "superiores", "mais fracas")) {
-        issues.push("Cópia/roubo precisa definir até qual grau copia e o que acontece com magias superiores.");
+        issues.push("Defina o limite de cópia: até qual grau copia e o que acontece com magia superior.");
       } else {
         good.push("Limite de cópia detectado.");
       }
 
       if (!data.copyTypes && !hasAnyText(data, "encantamento", "buff", "debuff", "transformação", "transformacao", "emissão", "emissao")) {
-        warnings.push("Diga quais tipos de magia podem ou não ser copiados.");
+        warnings.push("Liste tipos copiáveis e tipos proibidos.");
       } else {
         good.push("Tipos copiáveis/não copiáveis detectados.");
       }
 
       if (!data.copyStorage && !hasAnyText(data, "esfera", "guardar", "armazena", "cospe")) {
-        warnings.push("Defina como a magia copiada fica armazenada e como é usada.");
+        warnings.push("Defina armazenamento e uso da magia copiada.");
       } else {
         good.push("Forma de armazenamento/uso da magia copiada detectada.");
       }
@@ -1033,11 +1508,11 @@
 
     if (groups.has("summon")) {
       if (!data.summon && !hasAnyText(data, "invoco", "invoca", "sapo", "criatura")) {
-        warnings.push("Invocação precisa dizer o que é invocado.");
+        warnings.push("Diga exatamente o que é invocado.");
       }
 
       if (!data.summonBehavior && !hasAnyText(data, "vai atras", "vai atrás", "persegue", "alvo")) {
-        warnings.push("Invocação precisa de comportamento/alvo claro.");
+        warnings.push("Defina comportamento, alvo e se a invocação age sozinha.");
       } else {
         good.push("Comportamento da invocação detectado.");
       }
@@ -1070,7 +1545,7 @@
     }
 
     if (data.kinds.length >= 4 && !weaponEnchant) {
-      warnings.push(`A magia tem ${data.kinds.length} tipos. Isso pode ficar pesado; use limites, teste e penalidade.`);
+      warnings.push(`A magia tem ${data.kinds.length} tipos. Isso pesa bastante; corte efeitos ou coloque teste, limite e custo extra.`);
     }
 
     const bestTier = getBestTierThatFits(data);
@@ -1083,11 +1558,11 @@
         suggestions.push(`Testar como ${nextTier.rule.typeLabel} ${nextTier.rule.gradeLabel}.`);
       }
 
-      suggestions.push("Cortar um efeito secundário, reduzir área/duração/dano ou colocar um custo extra claro.");
+      suggestions.push("Melhores ajustes: corte 1 efeito secundário, reduza área/duração/dano ou adicione custo extra claro.");
     } else if (warnings.length) {
-      suggestions.push(`Está perto de boa. Eu usaria algo entre ${Math.max(rule.pm[0], suggested - 2)} e ${Math.min(rule.pm[1], suggested + 2)} PM.`);
+      suggestions.push(`Está quase balanceada. Eu usaria entre ${Math.max(rule.pm[0], suggested - 2)} e ${Math.min(rule.pm[1], suggested + 2)} PM.`);
     } else {
-      suggestions.push("Está bom do jeito que está.");
+      suggestions.push("Pode manter como está.");
     }
 
     if (minorWeaponEnchant) {
@@ -1223,15 +1698,41 @@
   }
 
   function extractCostFromText(text) {
-    const value = extractRegex(text, /custo\s*[:\-]?\s*(\d+)\s*(?:de\s*)?(?:pm)?/i);
-    return value ? Number(value) : null;
+    const raw = String(text || "");
+    const source = normalizeText(raw);
+  
+    // Evita pegar "custo da magia + metade" como se fosse custo fixo.
+    // Mas ainda permite pegar [20 PM], "Custa: 12 de PM", "12 de PM |".
+    const patterns = [
+      /\[\s*(\d+)\s*(?:de\s*)?pm\s*\]/i,
+      /\(\s*(\d+)\s*(?:de\s*)?pm\s*\)/i,
+      /(?:custa|custo)\s*[:\-]?\s*(\d+)\s*(?:de\s*)?pm/i,
+      /(?:^|\n|\|)\s*(\d+)\s*(?:de\s*)?pm\s*(?:\||$|\n)/i,
+      /\b(\d+)\s*(?:de\s*)?pm\b/i,
+    ];
+  
+    for (const regex of patterns) {
+      const match = raw.match(regex);
+      if (match) return Number(match[1]);
+    }
+  
+    // Caso venha escrito "PM: 20"
+    const reversed = raw.match(/\bpm\s*[:\-]?\s*(\d+)\b/i);
+    if (reversed) return Number(reversed[1]);
+  
+    return null;
   }
-
   function extractRoundsFromText(text) {
-    const direct = extractRegex(text, /dura[cç][aã]o\s*[:\-]?\s*(\d+)\s*rodadas?/i);
+    const raw = String(text || "");
+  
+    const direct =
+      extractRegex(raw, /dura[cç][aã]o\s*[:\-]?\s*(?:m[aá]xima\s*de\s*)?(\d+)\s*(?:rodadas?|turnos?)/i) ||
+      extractRegex(raw, /durando\s*(\d+)\s*(?:rodadas?|turnos?)/i) ||
+      extractRegex(raw, /dura[cç][aã]o\s*m[aá]xima\s*de\s*(\d+)\s*(?:rodadas?|turnos?)/i);
+  
     if (direct) return Number(direct);
-
-    const compact = extractRegex(text, /(\d+)\s*rodadas?/i);
+  
+    const compact = extractRegex(raw, /(\d+)\s*(?:rodadas?|turnos?)/i);
     return compact ? Number(compact) : null;
   }
 
@@ -1335,41 +1836,581 @@
         );
       }) || "";
   }
-
-  function chooseCategoryAndGradeFromPaste(text, cost, kinds) {
+  function parseExplicitTierFromText(text) {
     const source = normalizeText(text);
 
-    if (source.includes("avancada") || source.includes("avançada")) {
-      return { type: "avancada", grade: cost != null && cost > 70 ? "up1" : "base" };
+    const hasUp = (n) => new RegExp(`\\b(?:up|upgrade|nivel|nível|grau)\\s*${n}\\b`).test(source);
+    const hasBase = /\bbase\b/.test(source) || /\bbasica\b/.test(source) || /\bbasico\b/.test(source);
+
+    function gradeFor(type) {
+      if (type === "avancada") return hasUp(1) ? "up1" : "base";
+      if (type === "complexa") {
+        if (hasUp(2)) return "up2";
+        if (hasUp(1)) return "up1";
+        if (hasBase) return "base";
+        return null;
+      }
+      if (type === "simples") {
+        if (hasUp(3)) return "up3";
+        if (hasUp(2)) return "up2";
+        if (hasUp(1)) return "up1";
+        if (hasBase) return "base";
+        return null;
+      }
+      return null;
     }
 
-    if (source.includes("complexa")) {
-      if (cost != null && cost > 25) return { type: "complexa", grade: "up2" };
-      if (cost != null && cost > 20) return { type: "complexa", grade: "up1" };
-      return { type: "complexa", grade: "base" };
+    const tierPatterns = [
+      { type: "avancada", test: /\bavancad[ao]\b/ },
+      { type: "complexa", test: /\bcomplex[ao]\b/ },
+      { type: "simples", test: /\bsimples\b/ },
+    ];
+
+    for (const item of tierPatterns) {
+      if (!item.test.test(source)) continue;
+      const grade = gradeFor(item.type);
+      if (grade) return { type: item.type, grade };
     }
 
-    if (source.includes("simples up 3") || source.includes("simples up3")) return { type: "simples", grade: "up3" };
-    if (source.includes("simples up 2") || source.includes("simples up2")) return { type: "simples", grade: "up2" };
-    if (source.includes("simples up 1") || source.includes("simples up1")) return { type: "simples", grade: "up1" };
-    if (source.includes("simples base")) return { type: "simples", grade: "base" };
+    const separatedType = extractRegex(text, /categoria\s*[:\-]?\s*(simples|complexa|avancada|avançada)/i);
+    const separatedGrade = extractRegex(text, /(?:grau|nivel|nível|up)\s*[:\-]?\s*(base|\d+)/i);
 
-    const complexKinds = ["area", "controle", "encantamento", "transformacao", "invocacao", "copia", "necromancia", "reacao"];
-    const looksComplex = kinds.length >= 2 || kinds.some((kind) => complexKinds.includes(kind));
-
-    if (cost != null && cost >= 35) return { type: "avancada", grade: cost > 70 ? "up1" : "base" };
-
-    if (looksComplex || (cost != null && cost >= 6)) {
-      if (cost != null && cost > 25) return { type: "complexa", grade: "up2" };
-      if (cost != null && cost > 20) return { type: "complexa", grade: "up1" };
-      return { type: "complexa", grade: "base" };
+    if (separatedType && separatedGrade) {
+      const type = normalizeText(separatedType).replace("avancada", "avancada");
+      const n = normalizeText(separatedGrade);
+      const maxUp = type === "simples" ? 3 : type === "complexa" ? 2 : 1;
+      const grade = n === "base" ? "base" : `up${clamp(toInt(n, 1), 1, maxUp)}`;
+      if (RULES[type]?.grades?.[grade]) return { type, grade };
     }
 
-    if (cost != null && cost > 15) return { type: "simples", grade: "up3" };
-    if (cost != null && cost > 10) return { type: "simples", grade: "up3" };
-    if (cost != null && cost > 6) return { type: "simples", grade: "up2" };
-    if (cost != null && cost > 3) return { type: "simples", grade: "up1" };
+    return null;
+  }
 
+  function getTierFromCost(cost, preferredType = "") {
+    if (cost == null) return null;
+
+    const candidates = TIER_ORDER
+      .map(([type, grade]) => ({ type, grade, rule: getRule(type, grade) }))
+      .filter((item) => item.rule && cost >= item.rule.pm[0] && cost <= item.rule.pm[1]);
+
+    if (!candidates.length) {
+      if (cost >= 70) return { type: "avancada", grade: "up1" };
+      if (cost >= 35) return { type: "avancada", grade: "base" };
+      if (cost >= 26) return { type: "complexa", grade: "up2" };
+      if (cost >= 21) return { type: "complexa", grade: "up1" };
+      if (cost >= 16) return preferredType === "complexa" ? { type: "complexa", grade: "base" } : { type: "simples", grade: "up3" };
+      if (cost >= 11) return preferredType === "complexa" ? { type: "complexa", grade: "base" } : { type: "simples", grade: "up2" };
+      if (cost >= 7) return preferredType === "complexa" ? { type: "complexa", grade: "base" } : { type: "simples", grade: "up1" };
+      if (cost >= 4) return { type: "simples", grade: "up1" };
+      return { type: "simples", grade: "base" };
+    }
+
+    if (preferredType) {
+      const sameType = candidates.filter((item) => item.type === preferredType);
+      if (sameType.length) return sameType[Math.floor((sameType.length - 1) / 2)];
+    }
+
+    return candidates[Math.floor((candidates.length - 1) / 2)];
+  }
+
+  function buildPasteDataForEstimate(text, cost, kinds) {
+    const clean = cleanPastedSpellText(text);
+    const range = extractRangeFromText(clean);
+    const rounds = extractRoundsFromText(clean);
+    const duration = extractDurationText(clean);
+    const source = normalizeText(clean);
+    const diceLines = extractDiceLines(clean);
+    const saveLine = extractSaveLine(clean);
+    const saveEffectLine = extractSaveEffectLine(clean);
+  
+    const data = {
+      type: "simples",
+      grade: "base",
+      kinds: kinds.length ? kinds : inferKindsFromText(clean).slice(0, 6),
+      name: getFirstUsefulLine(clean),
+      cost,
+      rangeMode: range.mode || "alcance",
+      rangeMeters: range.meters === "" ? null : toNumber(range.meters, null),
+      areaShape: range.shape || "",
+      duration,
+      rounds,
+      damage: "",
+      extraDamage: "",
+      heal: "",
+      save: saveLine,
+      saveEffect: saveEffectLine,
+      buffs: null,
+      buffText: "",
+      debuffs: null,
+      debuffText: "",
+      enchantTarget: "",
+      enchantEffect: "",
+      transformTarget: "",
+      transformStats: "",
+      summon: "",
+      summonBehavior: "",
+      copyLimit: "",
+      copyTypes: "",
+      copyStorage: "",
+      charges: "",
+      drawback: "",
+      effectLimits: "",
+      channelRounds: null,
+      description: clean,
+      pasteText: clean,
+    };
+  
+    // Dano ou cura
+    if (
+      source.includes("cura") ||
+      source.includes("curar") ||
+      source.includes("curado") ||
+      source.includes("recupera vida") ||
+      source.includes("recupera hp") ||
+      source.includes("restaura vida") ||
+      source.includes("regenera")
+    ) {
+      data.heal = diceLines;
+    } else {
+      data.damage = diceLines;
+    }
+  
+    // Buffs
+    if (
+      source.includes("imune") ||
+      source.includes("imunidade") ||
+      source.includes("bonus") ||
+      source.includes("bônus") ||
+      source.includes("esquiva") ||
+      source.includes("ganha") ||
+      source.includes("recebe") ||
+      source.includes("acerto") ||
+      source.includes("+2 de acerto") ||
+      source.includes("+ 2 de acerto") ||
+      source.includes("+4 de dano") ||
+      source.includes("+ 4 de dano") ||
+      source.includes("armadura")
+    ) {
+      data.buffs = 1;
+      data.buffText = "buff/acerto/dano/armadura detectado no texto colado";
+    }
+  
+    // Debuffs e controle
+    if (
+      source.includes("-2") ||
+      source.includes("reduz") ||
+      source.includes("diminui") ||
+      source.includes("atordoado") ||
+      source.includes("paralisa") ||
+      source.includes("paralisado") ||
+      source.includes("imobiliza") ||
+      source.includes("imobilizado") ||
+      source.includes("rouba") ||
+      source.includes("roubar") ||
+      source.includes("absorve") ||
+      source.includes("pego") ||
+      source.includes("pegar") ||
+      source.includes("status mais forte") ||
+      source.includes("1 4 do status") ||
+      source.includes("1/4 do status")
+    ) {
+      data.debuffs = 1;
+      data.debuffText = "debuff/controle/roubo detectado no texto colado";
+    }
+  
+    // Encantamento de arma
+    if (
+      source.includes("arma") ||
+      source.includes("espada") ||
+      source.includes("lamina") ||
+      source.includes("lâmina") ||
+      source.includes("petrificando ele na sua arma") ||
+      source.includes("na sua arma") ||
+      source.includes("ataques com")
+    ) {
+      data.enchantTarget = "arma / ataque físico";
+      data.enchantEffect = "dano extra, acerto ou efeito aplicado ao atacar.";
+    }
+  
+    // Transformação / armadura mágica
+    if (
+      source.includes("transforma") ||
+      source.includes("transformacao") ||
+      source.includes("transformação") ||
+      source.includes("se torna") ||
+      source.includes("sobrecarga") ||
+      source.includes("armadura") ||
+      source.includes("armadura de sangue") ||
+      source.includes("armadura de raios") ||
+      source.includes("armadura de trovao") ||
+      source.includes("armadura de trovão")
+    ) {
+      data.transformTarget = "usuário";
+      data.transformStats = "transformação/armadura com bônus ou efeitos extras detectada.";
+    }
+  
+    // Invocação / estrutura em campo
+    if (
+      source.includes("invoco") ||
+      source.includes("invoca") ||
+      source.includes("invocar") ||
+      source.includes("criatura") ||
+      source.includes("sapo") ||
+      source.includes("servo") ||
+      source.includes("familiar") ||
+      source.includes("obelisco") ||
+      source.includes("belisco") ||
+      source.includes("totem") ||
+      source.includes("construto")
+    ) {
+      data.summon = "invocação/estrutura detectada no texto.";
+      data.summonBehavior = "definir vida, CA, duração, movimento, alvo e se age sozinha.";
+    }
+  
+    // Cópia / roubo / absorção de magia ou status
+    if (
+      source.includes("copia") ||
+      source.includes("copiar") ||
+      source.includes("rouba") ||
+      source.includes("roubar") ||
+      source.includes("roubo") ||
+      source.includes("absorve magia") ||
+      source.includes("magia roubada") ||
+      source.includes("roubar a sombra") ||
+      source.includes("rouba a sombra") ||
+      source.includes("status mais forte")
+    ) {
+      data.copyLimit =
+        source.includes("up") ||
+        source.includes("grau") ||
+        source.includes("superior") ||
+        source.includes("1 4") ||
+        source.includes("1/4") ||
+        source.includes("status")
+          ? "limite citado ou necessário: definir grau/status máximo roubado/copied"
+          : "";
+  
+      data.copyTypes =
+        source.includes("tipo") ||
+        source.includes("encantamento") ||
+        source.includes("buff") ||
+        source.includes("debuff") ||
+        source.includes("cura") ||
+        source.includes("transformacao") ||
+        source.includes("transformação")
+          ? "tipos afetados citados no texto"
+          : "";
+  
+      data.copyStorage =
+        source.includes("guarda") ||
+        source.includes("guardar") ||
+        source.includes("armazena") ||
+        source.includes("armazenar") ||
+        source.includes("esfera") ||
+        source.includes("sombra")
+          ? "armazenamento/uso citado ou ligado à sombra"
+          : "";
+    }
+  
+    // Cargas, marcas e custo variável
+    if (
+      source.includes("carga") ||
+      source.includes("cargas") ||
+      source.includes("marca") ||
+      source.includes("marcas")
+    ) {
+      data.charges = "cargas/marcas detectadas";
+    }
+  
+    // Custo variável / escalável
+    if (
+      source.includes("por teleporte") ||
+      source.includes("por aliado") ||
+      source.includes("por inimigo") ||
+      source.includes("+2 por aliado") ||
+      source.includes("+2 por inimigo") ||
+      source.includes("custo da magia mais metade") ||
+      source.includes("custando o custo da magia mais metade") ||
+      source.includes("custo da magia + metade")
+    ) {
+      data.effectLimits = [
+        data.effectLimits,
+        "custo variável/escalável detectado",
+      ].filter(Boolean).join("; ");
+    }
+  
+    // Interação com outras magias
+    if (
+      source.includes("quando uma magia") ||
+      source.includes("magia de buff") ||
+      source.includes("magia de cura") ||
+      source.includes("uso unico") ||
+      source.includes("uso único") ||
+      source.includes("duas vezes") ||
+      source.includes("intervalo de 1 rodada") ||
+      source.includes("aumenta o alcance") ||
+      source.includes("aumenta o alcanse")
+    ) {
+      data.effectLimits = [
+        data.effectLimits,
+        "interação com outra magia detectada; precisa de limite de uso e duração",
+      ].filter(Boolean).join("; ");
+    }
+  
+    // Penalidade / drawback
+    if (
+      source.includes("sofre") ||
+      source.includes("penalidade") ||
+      source.includes("pos uso") ||
+      source.includes("pós uso") ||
+      source.includes("toma 1d4") ||
+      source.includes("por rodada ativa")
+    ) {
+      data.drawback = "penalidade/custo pós-uso detectado.";
+    }
+  
+    // Canalização / concentração
+    if (
+      source.includes("canaliza") ||
+      source.includes("concentracao") ||
+      source.includes("concentração") ||
+      source.includes("assovia") ||
+      source.includes("prepara")
+    ) {
+      data.channelRounds = 1;
+    }
+  
+    // Teste/CD
+    if (
+      !data.save &&
+      (
+        source.includes("teste") ||
+        source.includes("cd") ||
+        source.includes("reflexo") ||
+        source.includes("reflexos") ||
+        source.includes("res") ||
+        source.includes("des")
+      )
+    ) {
+      data.save = saveLine || "teste/CD detectado no texto";
+    }
+  
+    // Resultado de teste
+    if (
+      !data.saveEffect &&
+      (
+        source.includes("se passar") ||
+        source.includes("caso passe") ||
+        source.includes("se falhar") ||
+        source.includes("caso falhe") ||
+        source.includes("metade do dano") ||
+        source.includes("fica paralisado")
+      )
+    ) {
+      data.saveEffect = saveEffectLine || "resultado de sucesso/falha detectado no texto";
+    }
+  
+    return inferMissingNumbers(data);
+  }
+  function chooseCategoryAndGradeFromPaste(text, cost, kinds) {
+    const explicitTier = parseExplicitTierFromText(text);
+    if (explicitTier) return { type: explicitTier.type, grade: explicitTier.grade };
+  
+    const data = buildPasteDataForEstimate(text, cost, kinds);
+    const findings = getComplexityFindings(data);
+    const minType = getHighestMinType(findings);
+  
+    const complexKinds = [
+      "area",
+      "controle",
+      "transformacao",
+      "invocacao",
+      "copia",
+      "necromancia",
+      "reacao",
+      "movimento",
+      "conjuracao",
+    ];
+  
+    const source = normalizeText(text);
+    const damage = parseDiceAverage(data.damage || data.extraDamage);
+    const heal = parseDiceAverage(data.heal);
+  
+    const hasStrongControl =
+      source.includes("paralisado") ||
+      source.includes("paralisa") ||
+      source.includes("atordoado") ||
+      source.includes("imobiliza") ||
+      source.includes("nao pode agir") ||
+      source.includes("não pode agir") ||
+      source.includes("perde acao") ||
+      source.includes("perde ação");
+  
+    const hasStatSteal =
+      source.includes("roubar a sombra") ||
+      source.includes("rouba a sombra") ||
+      source.includes("status mais forte") ||
+      source.includes("1 4 do status") ||
+      source.includes("1/4 do status") ||
+      source.includes("pego 1 4") ||
+      source.includes("pego 1/4") ||
+      (
+        (source.includes("rouba") || source.includes("roubar") || source.includes("pego") || source.includes("pegar")) &&
+        (source.includes("for") || source.includes("des") || source.includes("res") || source.includes("int") || source.includes("sab") || source.includes("car"))
+      );
+  
+    const hasAutoBuffCombo =
+      source.includes("ativa automaticamente") ||
+      source.includes("automaticamente tiros divinos") ||
+      (
+        (source.includes("ganha") || source.includes("recebe")) &&
+        source.includes("acerto") &&
+        source.includes("dano")
+      );
+  
+    const hasSummonStructure =
+      source.includes("obelisco") ||
+      source.includes("belisco") ||
+      source.includes("totem") ||
+      source.includes("construto") ||
+      (
+        (source.includes("invoca") || source.includes("invoco") || source.includes("invocar")) &&
+        (source.includes("vida") || source.includes("ca") || source.includes("move") || source.includes("flutuando"))
+      );
+  
+    const hasSpellInteraction =
+      source.includes("quando uma magia") ||
+      source.includes("magia de buff") ||
+      source.includes("magia de cura") ||
+      source.includes("uso unico") ||
+      source.includes("uso único") ||
+      source.includes("duas vezes") ||
+      source.includes("intervalo de 1 rodada") ||
+      source.includes("aumenta o alcance") ||
+      source.includes("aumenta o alcanse") ||
+      source.includes("custo da magia mais metade") ||
+      source.includes("custando o custo da magia mais metade");
+  
+    const hasVariableCost =
+      source.includes("por teleporte") ||
+      source.includes("por aliado") ||
+      source.includes("por inimigo") ||
+      source.includes("+2 por aliado") ||
+      source.includes("+2 por inimigo") ||
+      source.includes("custo da magia mais metade");
+  
+    const hasOffensiveArmor =
+      (
+        source.includes("armadura") ||
+        source.includes("armadura de sangue") ||
+        source.includes("armadura de raios") ||
+        source.includes("armadura de trovao") ||
+        source.includes("armadura de trovão")
+      ) &&
+      (
+        source.includes("acerto") ||
+        source.includes("dano") ||
+        source.includes("reflexo") ||
+        source.includes("paralisado")
+      );
+  
+    const hasAllyEnemyTeleport =
+      (
+        source.includes("teleporte") ||
+        source.includes("teletransporta") ||
+        source.includes("teletransportar") ||
+        source.includes("teletransporte")
+      ) &&
+      (
+        source.includes("aliado") ||
+        source.includes("inimigo") ||
+        source.includes("teste")
+      );
+  
+    const highImpact =
+      (damage && damage.avg >= 26) ||
+      (heal && heal.avg >= 24) ||
+      (data.rangeMeters != null && data.rangeMeters >= 20) ||
+      (data.rounds != null && data.rounds >= 10) ||
+      hasStrongControl ||
+      hasStatSteal ||
+      hasAutoBuffCombo ||
+      hasSummonStructure ||
+      hasSpellInteraction ||
+      hasOffensiveArmor ||
+      source.includes("morte instantanea") ||
+      source.includes("morte instantânea") ||
+      source.includes("apagar existencia") ||
+      source.includes("apagar existência") ||
+      source.includes("parar o tempo") ||
+      source.includes("voltar no tempo");
+  
+    let preferredType = minType || "";
+  
+    if (!preferredType && (highImpact || cost >= 35)) {
+      preferredType = "avancada";
+    }
+  
+    // Se tem cara de magia complexa, mas não é absurda/avançada.
+    if (
+      preferredType !== "avancada" &&
+      (
+        hasSummonStructure ||
+        hasSpellInteraction ||
+        hasStatSteal ||
+        hasStrongControl ||
+        hasAutoBuffCombo ||
+        hasOffensiveArmor ||
+        hasAllyEnemyTeleport ||
+        kinds.length >= 2 ||
+        kinds.some((kind) => complexKinds.includes(kind)) ||
+        cost >= 14
+      )
+    ) {
+      preferredType = "complexa";
+    }
+  
+    // Ajustes diretos por custo quando o custo foi escrito claramente.
+    // Isso corrige casos como [20 PM], 12 de PM, 8 de PM por teleporte.
+    if (cost != null) {
+      if (preferredType === "complexa") {
+        if (cost > 25) return { type: "complexa", grade: "up2" };
+        if (cost > 20) return { type: "complexa", grade: "up1" };
+        return { type: "complexa", grade: "base" };
+      }
+  
+      if (preferredType === "avancada") {
+        return { type: "avancada", grade: cost > 70 ? "up1" : "base" };
+      }
+    }
+  
+    const bestTier = getBestTierThatFits(data);
+    const costTier = getTierFromCost(cost, preferredType);
+  
+    if (bestTier && costTier) {
+      const bestIndex = getTierIndex(bestTier.type, bestTier.grade);
+      const costIndex = getTierIndex(costTier.type, costTier.grade);
+      const minTypeBlocked = minType && getTypeRank(costTier.type) < getTypeRank(minType);
+  
+      if (minTypeBlocked) {
+        return { type: bestTier.type, grade: bestTier.grade };
+      }
+  
+      if (Math.abs(bestIndex - costIndex) <= 1) {
+        return costIndex >= bestIndex
+          ? { type: costTier.type, grade: costTier.grade }
+          : { type: bestTier.type, grade: bestTier.grade };
+      }
+  
+      return { type: bestTier.type, grade: bestTier.grade };
+    }
+  
+    if (bestTier) return { type: bestTier.type, grade: bestTier.grade };
+    if (costTier) return { type: costTier.type, grade: costTier.grade };
+  
+    if (preferredType === "avancada") return { type: "avancada", grade: "base" };
+    if (preferredType === "complexa") return { type: "complexa", grade: "base" };
+  
     return { type: "simples", grade: "base" };
   }
 
@@ -1498,7 +2539,7 @@
           "Magia auto preenchida com base no texto colado.\n\n" +
           `Categoria detectada: ${RULES[category.type]?.label || category.type} ${getRule(category.type, category.grade)?.gradeLabel || category.grade}\n` +
           `Tipos detectados: ${kinds.map((kind) => KIND_LABELS[kind] || kind).join(" + ")}\n\n` +
-          "Agora clique em Analisar magia para o bot balancear.",
+          "Agora clique em Analisar magia para ver PM sugerido, problemas e ajustes práticos.",
       });
     }
   }
