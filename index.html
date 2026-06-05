@@ -11,6 +11,14 @@
   <main class="app" role="main">
     <header class="toolbar" role="region" aria-label="Ações do cartão">
       <div class="toolbar__group toolbar__group--menu">
+        <span class="toolbar__brand">Cartão&nbsp;RPG</span>
+
+        <div class="toolbar__chars">
+          <label class="srOnly" for="characterSelect">Ficha ativa</label>
+          <span class="toolbar__charsLabel" aria-hidden="true">Ficha:</span>
+          <select id="characterSelect" class="characterSelect" title="Trocar de ficha ativa"></select>
+        </div>
+
         <div class="toolbarMenu">
           <button
             id="btnToolbarMenu"
@@ -19,9 +27,10 @@
             aria-haspopup="true"
             aria-expanded="false"
             aria-controls="toolbarDropdown"
-            title="Abrir menu"
+            title="Abrir menu de ações"
           >
-            ⋯
+            <span class="toolbarMenu__triggerIcon" aria-hidden="true">☰</span>
+            <span class="toolbarMenu__triggerText">Ações</span>
           </button>
 
           <div
@@ -31,13 +40,22 @@
             aria-label="Ações do cartão"
             hidden
           >
+            <p class="toolbarMenu__group" aria-hidden="true">Fichas</p>
+            <button id="btnNewCharacter" class="toolbarMenu__item" type="button">Nova ficha</button>
+            <button id="btnDuplicateCharacter" class="toolbarMenu__item" type="button">Duplicar ficha</button>
+            <button id="btnRenameCharacter" class="toolbarMenu__item" type="button">Renomear ficha</button>
+            <button id="btnDeleteCharacter" class="toolbarMenu__item toolbarMenu__item--danger" type="button">Excluir ficha</button>
+
+            <hr class="toolbarMenu__sep" />
+
+            <p class="toolbarMenu__group" aria-hidden="true">Ficha atual</p>
             <label class="btn btn--label toolbarMenu__item" for="inpPhoto">Adicionar foto</label>
             <input id="inpPhoto" type="file" accept="image/*" hidden />
 
             <button id="btnRemovePhoto" class="toolbarMenu__item" type="button">Remover foto</button>
-            <button id="btnExport" class="toolbarMenu__item" type="button">Exportar JSON</button>
+            <button id="btnExport" class="toolbarMenu__item" type="button">Exportar JSON (ficha atual)</button>
 
-            <label class="btn btn--label toolbarMenu__item" for="inpImport">Importar JSON</label>
+            <label class="btn btn--label toolbarMenu__item" for="inpImport">Importar JSON (nova ficha)</label>
             <input id="inpImport" type="file" accept="application/json,.json" hidden />
 
             <button id="btnReset" class="toolbarMenu__item" type="button">Reset</button>
@@ -133,15 +151,15 @@
                 </div>
 
                 <div class="quickBar" aria-label="Status rápidos">
-                  <div class="quickItem"><span>Nv</span><strong id="outNv">1</strong></div>
-                  <div class="quickItem"><span>XP</span><strong id="outXp">0</strong></div>
-                  <div class="quickItem"><span>HP</span><strong id="outHp">10/10</strong></div>
-                  <div class="quickItem"><span>PM</span><strong id="outPm">0/0</strong></div>
-                  <div class="quickItem"><span>HPP</span><strong id="outHpp">0/0</strong></div>
-                  <div class="quickItem"><span>CA</span><strong id="outCa">10</strong></div>
-                  <div class="quickItem"><span>PI</span><strong id="outPi">0</strong></div>
-                  <div class="quickItem"><span>PB</span><strong id="outPb">0</strong></div>
-                  <div class="quickItem"><span>Arma</span><strong id="outWeapon">0</strong></div>
+                  <div class="quickItem" data-res="nv"><span>Nível</span><strong id="outNv">1</strong></div>
+                  <div class="quickItem" data-res="xp"><span>XP</span><strong id="outXp">0</strong></div>
+                  <div class="quickItem" data-res="hp"><span>HP</span><strong id="outHp">10/10</strong></div>
+                  <div class="quickItem" data-res="pm"><span>PM</span><strong id="outPm">0/0</strong></div>
+                  <div class="quickItem" data-res="hpp"><span>HPP</span><strong id="outHpp">0/0</strong></div>
+                  <div class="quickItem" data-res="ca"><span>CA</span><strong id="outCa">10</strong></div>
+                  <div class="quickItem" data-res="pi"><span>PI</span><strong id="outPi">0</strong></div>
+                  <div class="quickItem" data-res="pb"><span>PB</span><strong id="outPb">0</strong></div>
+                  <div class="quickItem" data-res="arma"><span>Arma</span><strong id="outWeapon">0</strong></div>
                 </div>
               </div>
 
@@ -173,12 +191,123 @@
                       <div><b>Próximo nível</b><span id="outXpNext">—</span></div>
                       <div><b>Falta</b><span id="outXpLeft">—</span></div>
                     </div>
+
+                    <div
+                      class="xpBar"
+                      id="xpBar"
+                      role="progressbar"
+                      aria-label="Progresso de XP até o próximo nível"
+                      aria-valuemin="0"
+                      aria-valuemax="100"
+                      aria-valuenow="0"
+                    >
+                      <div class="xpBar__fill" id="xpBarFill"></div>
+                      <span class="xpBar__label" id="xpBarLabel">0%</span>
+                    </div>
                   </section>
                 </div>
               </div>
             </header>
 
             <section class="mainColumn" aria-label="Atributos e campos editáveis">
+              <div class="sectionTitle">
+                <h2>Dados do personagem</h2>
+                <div class="chips">
+                  <span class="chip">identidade</span>
+                </div>
+              </div>
+
+              <div class="formGrid" aria-label="Dados do personagem">
+                <div class="stat">
+                  <label for="in_idade">Idade</label>
+                  <input id="in_idade" inputmode="numeric" placeholder="Ex: 19" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_altura">Altura</label>
+                  <input
+                    id="in_altura"
+                    inputmode="text"
+                    placeholder="Ex: 1,78m"
+                    autocorrect="off"
+                    spellcheck="false"
+                  />
+                </div>
+
+                <div class="stat">
+                  <label for="in_raca">Raça</label>
+                  <input
+                    id="in_raca"
+                    list="raceList"
+                    inputmode="text"
+                    placeholder="Ex: Humano"
+                    autocapitalize="words"
+                    spellcheck="false"
+                  />
+                  <datalist id="raceList"></datalist>
+                </div>
+
+                <div class="stat">
+                  <label for="in_classe">Classe</label>
+                  <input
+                    id="in_classe"
+                    inputmode="text"
+                    placeholder="Ex: Feiticeiro"
+                    autocapitalize="words"
+                    spellcheck="false"
+                  />
+                </div>
+              </div>
+
+              <div class="sectionTitle">
+                <h2>Recursos &amp; progressão</h2>
+                <div class="chips">
+                  <span class="chip">editável</span>
+                </div>
+              </div>
+
+              <div class="formGrid" aria-label="Recursos e progressão">
+                <div class="stat">
+                  <label for="in_nv">Nível</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_nv" placeholder="1" max="60" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_xp">XP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_xp" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_hp_cur">HP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_hp_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_pm_cur">PM atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_pm_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_hpp_cur">HPP atual</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_hpp_cur" placeholder="0" max="999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_pi">PI</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_pi" placeholder="0" max="10" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_ca_bonus">Bônus de CA</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_ca_bonus" placeholder="0" max="999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_weapon_level">Nível da arma</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_weapon_level" placeholder="0" max="20" />
+                </div>
+              </div>
+
               <div class="sectionTitle">
                 <h2>Status</h2>
                 <div class="chips" aria-hidden="true">
@@ -234,95 +363,6 @@
                   <label for="st_res">RES</label>
                   <input inputmode="numeric" step="1" type="number" id="st_res" placeholder="0" max="999" />
                   <small class="modBadge" id="mod_res">+0</small>
-                </div>
-              </div>
-
-              <div class="sectionTitle">
-                <h2>Campos editáveis</h2>
-                <div class="chips">
-                  <span class="chip">resumo</span>
-                </div>
-              </div>
-
-              <div class="formGrid" aria-label="Campos do personagem">
-                <div class="stat">
-                  <label for="in_idade">Idade</label>
-                  <input id="in_idade" inputmode="numeric" placeholder="Ex: 19" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_altura">Altura</label>
-                  <input
-                    id="in_altura"
-                    inputmode="text"
-                    placeholder="Ex: 1,78m"
-                    autocorrect="off"
-                    spellcheck="false"
-                  />
-                </div>
-
-                <div class="stat">
-                  <label for="in_raca">Raça</label>
-                  <input
-                    id="in_raca"
-                    list="raceList"
-                    inputmode="text"
-                    placeholder="Ex: Humano"
-                    autocapitalize="words"
-                    spellcheck="false"
-                  />
-                  <datalist id="raceList"></datalist>
-                </div>
-
-                <div class="stat">
-                  <label for="in_classe">Classe</label>
-                  <input
-                    id="in_classe"
-                    inputmode="text"
-                    placeholder="Ex: Feiticeiro"
-                    autocapitalize="words"
-                    spellcheck="false"
-                  />
-                </div>
-
-                <div class="stat">
-                  <label for="in_nv">Nível</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_nv" placeholder="1" max="60" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_xp">XP atual</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_xp" placeholder="0" max="999999" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_hp_cur">HP atual</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_hp_cur" placeholder="0" max="999999" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_pm_cur">PM atual</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_pm_cur" placeholder="0" max="999999" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_hpp_cur">HPP atual</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_hpp_cur" placeholder="0" max="999999" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_pi">PI</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_pi" placeholder="0" max="10" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_ca_bonus">Bônus de CA</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_ca_bonus" placeholder="0" max="999" />
-                </div>
-
-                <div class="stat">
-                  <label for="in_weapon_level">Nível da arma</label>
-                  <input inputmode="numeric" step="1" type="number" id="in_weapon_level" placeholder="0" max="20" />
                 </div>
               </div>
 
@@ -401,6 +441,49 @@
                   <input id="hit_ench_des" type="text" readonly value="+0" />
                 </div>
               </div>
+
+              <div class="sectionTitle">
+                <h2>Catalisador (mágico)</h2>
+                <div class="chips">
+                  <span class="chip">acerto arcano</span>
+                  <span class="chip">dano/cura</span>
+                </div>
+              </div>
+
+              <div class="formGrid" aria-label="Catalisador mágico">
+                <div class="stat">
+                  <label for="in_catalyst_level">Nível do catalisador</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_catalyst_level" placeholder="0" min="0" max="20" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_catalyst_xp">XP do catalisador</label>
+                  <input inputmode="numeric" step="1" type="number" id="in_catalyst_xp" placeholder="0" min="0" max="9999999" />
+                </div>
+
+                <div class="stat">
+                  <label for="in_catalyst_xp_next">XP próximo nível</label>
+                  <input id="in_catalyst_xp_next" type="text" readonly value="—" />
+                </div>
+
+                <div class="stat">
+                  <label for="out_catalyst_bonus">Bônus do catalisador</label>
+                  <input id="out_catalyst_bonus" type="text" readonly value="+0 acerto • +0 dano/cura" />
+                </div>
+              </div>
+
+              <div
+                class="xpBar"
+                id="catalystXpBar"
+                role="progressbar"
+                aria-label="Progresso de XP do catalisador"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <div class="xpBar__fill" id="catalystXpBarFill"></div>
+                <span class="xpBar__label" id="catalystXpBarLabel">0%</span>
+              </div>
             </section>
 
             <aside class="sideColumn" aria-label="Radar e runas">
@@ -417,9 +500,9 @@
               </div>
 
               <div class="sectionTitle">
-                <h2>Runas (%)</h2>
+                <h2>Afinidades / Runas</h2>
                 <div class="chips">
-                  <span class="chip">slider</span>
+                  <span class="chip">%</span>
                   <span class="chip">tier</span>
                 </div>
               </div>
@@ -464,38 +547,159 @@
                 <div class="track" id="glyphTopTrackBack"></div>
               </div>
               <div class="notesHead__row">
-                <div class="backTitle">Anotações</div>
+                <div class="notesHead__titles">
+                  <div class="backTitle">Anotações</div>
+                  <p class="notesHead__subtitle">
+                    Tudo salva sozinho neste aparelho. Toque no título de um bloco para recolher.
+                  </p>
+                </div>
                 <span class="saveBadge" id="saveStateBack" role="status" aria-live="polite">salvo</span>
               </div>
             </div>
 
-            <div class="accordionList">
-              <details class="noteCard" open>
-                <summary>História / objetivos</summary>
-                <label class="srOnly" for="note_story">História / objetivos</label>
+            <div class="notesGrid">
+              <details class="noteCard noteCard--full" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">📜</span>
+                    <span class="noteCard__title">História do personagem</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">De onde veio, marcos da vida, segredos e o passado que carrega.</p>
+                <label class="srOnly" for="note_story">História do personagem</label>
                 <textarea
                   id="note_story"
                   class="noteArea"
-                  placeholder="Anotações..."
+                  placeholder="Era uma vez, nas terras de..."
                   autocorrect="off"
                   spellcheck="false"
                 ></textarea>
               </details>
 
               <details class="noteCard" open>
-                <summary>Inventário</summary>
-                <label class="srOnly" for="note_inv">Inventário</label>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🎭</span>
+                    <span class="noteCard__title">Personalidade</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Temperamento, manias, valores, medos e como age sob pressão.</p>
+                <label class="srOnly" for="note_personality">Personalidade</label>
+                <textarea
+                  id="note_personality"
+                  class="noteArea"
+                  placeholder="Ex: leal, impulsivo, teme a escuridão..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">👁️</span>
+                    <span class="noteCard__title">Aparência</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Rosto, corpo, roupas, marcas e detalhes que chamam atenção.</p>
+                <label class="srOnly" for="note_appearance">Aparência</label>
+                <textarea
+                  id="note_appearance"
+                  class="noteArea"
+                  placeholder="Ex: cicatriz no olho, manto puído, olhos âmbar..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🎯</span>
+                    <span class="noteCard__title">Objetivos</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Metas de curto e longo prazo, sonhos e o que move o personagem.</p>
+                <label class="srOnly" for="note_goals">Objetivos</label>
+                <textarea
+                  id="note_goals"
+                  class="noteArea"
+                  placeholder="Ex: encontrar o irmão perdido, dominar a magia do gelo..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🤝</span>
+                    <span class="noteCard__title">Relações / NPCs</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Aliados, rivais, contatos e pistas sobre quem encontrou.</p>
+                <label class="srOnly" for="note_npcs">Relações e NPCs</label>
+                <textarea
+                  id="note_npcs"
+                  class="noteArea"
+                  placeholder="Ex: Taverneiro viu alguém suspeito; mestre Aldric deve um favor..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🗺️</span>
+                    <span class="noteCard__title">Missões</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Missões ativas, recompensas prometidas e prazos.</p>
+                <label class="srOnly" for="note_quests">Missões</label>
+                <textarea
+                  id="note_quests"
+                  class="noteArea"
+                  placeholder="Ex: [ ] Recuperar o amuleto na cripta — 200 ouro..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🎒</span>
+                    <span class="noteCard__title">Inventário / itens</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Ouro, consumíveis, equipamentos e itens importantes.</p>
+                <label class="srOnly" for="note_inv">Inventário e itens</label>
                 <textarea
                   id="note_inv"
                   class="noteArea"
-                  placeholder="Ex: 25 ouro, poção x2, corda..."
+                  placeholder="Ex: 25 ouro, poção de cura x2, corda (15m)..."
                   autocorrect="off"
                   spellcheck="false"
                 ></textarea>
               </details>
 
               <details class="noteCard" open>
-                <summary>Habilidades</summary>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">⚔️</span>
+                    <span class="noteCard__title">Habilidades</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Talentos, perícias e habilidades fora as magias.</p>
                 <label class="srOnly" for="note_skills">Habilidades</label>
                 <textarea
                   id="note_skills"
@@ -506,8 +710,15 @@
                 ></textarea>
               </details>
 
-              <details class="noteCard" open>
-                <summary>Magias</summary>
+              <details class="noteCard noteCard--full" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">✦</span>
+                    <span class="noteCard__title">Magias</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Use a aba “Criação de Magias” para balancear e mandar a ficha pronta para cá.</p>
 
                 <div class="magicNotesGrid">
                   <div class="magicNoteGroup">
@@ -545,13 +756,46 @@
                 </div>
               </details>
 
-              <details class="noteCard" open>
-                <summary>NPCs / pistas</summary>
-                <label class="srOnly" for="note_npcs">NPCs / pistas</label>
+              <details class="noteCard noteCard--full" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">📖</span>
+                    <span class="noteCard__title">Diário de sessão</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Registre o que aconteceu em cada sessão. Use o botão para iniciar uma nova entrada datada.</p>
+
+                <div class="noteToolbar">
+                  <button type="button" id="btnNewSessionEntry" class="noteBtn">
+                    + Nova entrada de sessão
+                  </button>
+                </div>
+
+                <label class="srOnly" for="note_diary">Diário de sessão</label>
                 <textarea
-                  id="note_npcs"
-                  class="noteArea"
-                  placeholder="Ex: Taverneiro viu alguém..."
+                  id="note_diary"
+                  class="noteArea noteArea--tall"
+                  placeholder="── Sessão 00/00 ──&#10;O grupo chegou à vila e..."
+                  autocorrect="off"
+                  spellcheck="false"
+                ></textarea>
+              </details>
+
+              <details class="noteCard noteCard--full" open>
+                <summary>
+                  <span class="noteCard__head">
+                    <span class="noteCard__icon" aria-hidden="true">🪶</span>
+                    <span class="noteCard__title">Anotações livres</span>
+                  </span>
+                  <span class="noteCard__chevron" aria-hidden="true">⌄</span>
+                </summary>
+                <p class="noteHelp">Qualquer coisa que não se encaixa nos outros blocos.</p>
+                <label class="srOnly" for="note_free">Anotações livres</label>
+                <textarea
+                  id="note_free"
+                  class="noteArea noteArea--tall"
+                  placeholder="Ideias, lembretes, rascunhos..."
                   autocorrect="off"
                   spellcheck="false"
                 ></textarea>
@@ -1110,6 +1354,16 @@
     </noscript>
   </main>
 
+  <!-- Mensagens discretas (toasts). aria-live anuncia para leitores de tela. -->
+  <div
+    id="toastRegion"
+    class="toastRegion"
+    role="region"
+    aria-label="Mensagens do cartão"
+    aria-live="polite"
+    aria-atomic="false"
+  ></div>
+
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const btnToolbarMenu = document.getElementById('btnToolbarMenu');
@@ -1173,10 +1427,15 @@
     });
   </script>
 
+  <!--
+    Ordem importa. Com `defer`, todos executam após o parse do HTML, na ordem abaixo:
+    1) dados (racas) e cálculos puros  2) motor de magia  3) script principal  4) UI de magia.
+    spell-ui depende de window.SpellEngine; por isso spell-engine vem antes.
+  -->
   <script src="./racas.js" defer></script>
   <script src="./calculos-personagem.js" defer></script>
+  <script src="./spell-engine.js" defer></script>
   <script src="./script.js" defer></script>
-  <script src="spell-engine.js"></script>
-  <script src="spell-ui.js"></script>
+  <script src="./spell-ui.js" defer></script>
 </body>
 </html>

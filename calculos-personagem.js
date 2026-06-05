@@ -29,7 +29,68 @@ window.CharacterCalc = (() => {
     27: 42000,
     28: 44000,
     29: 46000,
+    // 30-39: continua +2000 por nível
+    30: 48000,
+    31: 50000,
+    32: 52000,
+    33: 54000,
+    34: 56000,
+    35: 58000,
+    36: 60000,
+    37: 62000,
+    38: 64000,
+    39: 66000,
+    // 40-49: passa a +3000 por nível
+    40: 69000,
+    41: 72000,
+    42: 75000,
+    43: 78000,
+    44: 81000,
+    45: 84000,
+    46: 87000,
+    47: 90000,
+    48: 93000,
+    49: 96000,
+    // 50-59: passa a +4000 por nível (59 -> 60 é o último salto)
+    50: 100000,
+    51: 104000,
+    52: 108000,
+    53: 112000,
+    54: 116000,
+    55: 120000,
+    56: 124000,
+    57: 128000,
+    58: 132000,
+    59: 136000,
+    // Nível 60 é o teto: sem entrada, então getNextLevelXp(60) === null.
   });
+
+  // XP do catalisador (mágico). Chave = nível atual; valor = XP para o próximo.
+  // Nível 20 é o teto, então não tem entrada (getCatalystNextXp(20) === null).
+  const CATALYST_XP_TO_NEXT = Object.freeze({
+    0: 500,
+    1: 1000,
+    2: 2000,
+    3: 3000,
+    4: 4000,
+    5: 6000,
+    6: 8000,
+    7: 10000,
+    8: 12000,
+    9: 14000,
+    10: 18000,
+    11: 21000,
+    12: 24000,
+    13: 27000,
+    14: 30000,
+    15: 34000,
+    16: 38000,
+    17: 42000,
+    18: 46000,
+    19: 50000,
+  });
+
+  const MAX_CATALYST_LEVEL = 20;
 
   function toInt(value, fallback = 0) {
     const n = parseInt(value, 10);
@@ -137,8 +198,69 @@ window.CharacterCalc = (() => {
     return Math.max(0, toInt(weapon?.level, 0));
   }
 
-  function calcMagicHit({ mods }) {
-    return mods.int;
+  // Bônus do catalisador = o próprio nível (0..20). Vale para acerto arcano
+  // e para dano/cura mágica.
+  function getCatalystBonus(level) {
+    return clamp(toInt(level, 0), 0, MAX_CATALYST_LEVEL);
+  }
+
+  function getCatalystNextXp(level) {
+    return CATALYST_XP_TO_NEXT[toInt(level, 0)] ?? null;
+  }
+
+  // Rola o XP em níveis enquanto houver XP suficiente, travando em 20.
+  function normalizeCatalystLevelAndXp({ level, xp }) {
+    let currentLevel = clamp(toInt(level, 0), 0, MAX_CATALYST_LEVEL);
+    let currentXp = Math.max(0, toInt(xp, 0));
+    const startLevel = currentLevel;
+
+    while (currentLevel < MAX_CATALYST_LEVEL) {
+      const need = getCatalystNextXp(currentLevel);
+      if (need == null || currentXp < need) break;
+      currentXp -= need;
+      currentLevel += 1;
+    }
+
+    return {
+      level: currentLevel,
+      xp: currentXp,
+      nextXp: getCatalystNextXp(currentLevel),
+      gainedLevels: Math.max(0, currentLevel - startLevel),
+    };
+  }
+
+  function getCatalystXpProgress({ level, xp }) {
+    const n = normalizeCatalystLevelAndXp({ level, xp });
+
+    if (n.nextXp == null) {
+      return {
+        level: n.level,
+        current: n.xp,
+        total: null,
+        remaining: null,
+        percent: null,
+        gainedLevels: n.gainedLevels,
+      };
+    }
+
+    return {
+      level: n.level,
+      current: n.xp,
+      total: n.nextXp,
+      remaining: Math.max(0, n.nextXp - n.xp),
+      percent: clamp(n.nextXp > 0 ? (n.xp / n.nextXp) * 100 : 0, 0, 100),
+      gainedLevels: n.gainedLevels,
+    };
+  }
+
+  // Slots de atributo desbloqueados nos níveis 5, 10, 15 e 20 (0..4).
+  function getCatalystUnlockedSlots(level) {
+    const l = clamp(toInt(level, 0), 0, MAX_CATALYST_LEVEL);
+    return [5, 10, 15, 20].reduce((acc, threshold) => acc + (l >= threshold ? 1 : 0), 0);
+  }
+
+  function calcMagicHit({ mods, catalyst }) {
+    return mods.int + getCatalystBonus(catalyst?.level);
   }
 
   function calcPhysicalHit({ mods, weapon, mode = "for" }) {
@@ -151,11 +273,11 @@ window.CharacterCalc = (() => {
     return physicalMod + Math.floor(mods.int / 2) + getWeaponHitBonus(weapon);
   }
 
-  function calculateAttackBonuses({ stats, weapon }) {
+  function calculateAttackBonuses({ stats, weapon, catalyst }) {
     const mods = getModifiers(stats);
 
     return {
-      magic: calcMagicHit({ mods }),
+      magic: calcMagicHit({ mods, catalyst }),
       physicalFor: calcPhysicalHit({ mods, weapon, mode: "for" }),
       physicalDes: calcPhysicalHit({ mods, weapon, mode: "des" }),
       enchantedFor: calcEnchantedHit({ mods, weapon, mode: "for" }),
@@ -233,7 +355,7 @@ window.CharacterCalc = (() => {
     return "Exclusiva";
   }
 
-  function calculate({ level, stats, race, progression, weapon }) {
+  function calculate({ level, stats, race, progression, weapon, catalyst }) {
     const safeLevel = Math.max(1, toInt(level, 1));
     const mods = getModifiers(stats);
     const hpBase = race?.hpBase ?? 10;
@@ -248,13 +370,16 @@ window.CharacterCalc = (() => {
       pmMax: calcPmMax({ level: safeLevel, pmBase, mods, progression }),
       hppMax: calcHppMax({ level: safeLevel, hpBase, mods, progression }),
       ca: calcCa({ level: safeLevel, mods }),
-      attackBonuses: calculateAttackBonuses({ stats, weapon }),
+      attackBonuses: calculateAttackBonuses({ stats, weapon, catalyst }),
+      catalystBonus: getCatalystBonus(catalyst?.level),
       raceName: race?.name ?? "",
     };
   }
 
   return {
     XP_TO_NEXT,
+    CATALYST_XP_TO_NEXT,
+    MAX_CATALYST_LEVEL,
     toInt,
     clamp,
     getModifier,
@@ -274,6 +399,11 @@ window.CharacterCalc = (() => {
     normalizeLevelAndXp,
     getXpProgress,
     getRuneTier,
+    getCatalystBonus,
+    getCatalystNextXp,
+    normalizeCatalystLevelAndXp,
+    getCatalystXpProgress,
+    getCatalystUnlockedSlots,
     calculate,
   };
 })();

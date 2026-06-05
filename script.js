@@ -1,9 +1,13 @@
 const $ = (id) => document.getElementById(id);
 
-const STORAGE_KEY = "rpg_card_v8_state";
+const STORAGE_KEY = "rpg_card_v8_state"; // ficha única antiga (mantida como backup)
 const PHOTO_DB_NAME = "rpg_card_v6_db";
 const PHOTO_STORE = "assets";
-const PHOTO_KEY = "character_photo";
+const PHOTO_KEY = "character_photo"; // chave da foto antiga (única) — base do nome por ficha
+
+// Multi-fichas (v9)
+const INDEX_KEY = "rpg_card_v9_index";
+const CHAR_PREFIX = "rpg_card_v9_character_";
 
 const SAVE_DELAY = 180;
 const STATUS_KEYS = ["for", "des", "con", "int", "sab", "car", "adp", "res"];
@@ -31,6 +35,21 @@ const SIGNED_MANUAL_CALC_FIELDS = new Set([
   "hit_ench_des",
 ]);
 
+// Limites do sistema (level 1-60, PI 0-10, arma/catalisador 0-20).
+const MAX_LEVEL = 60;
+const MAX_PI = 10;
+const MAX_WEAPON_LEVEL = 20;
+
+// Campos com faixa fixa: corrigidos para dentro do limite ao sair do campo (blur).
+const MAX_CATALYST_LEVEL = 20;
+
+const CLAMPED_FIELD_RANGES = {
+  in_nv: [1, MAX_LEVEL],
+  in_pi: [0, MAX_PI],
+  in_weapon_level: [0, MAX_WEAPON_LEVEL],
+  in_catalyst_level: [0, MAX_CATALYST_LEVEL],
+};
+
 const EDITABLE_FIELD_IDS = [
   "in_idade",
   "in_altura",
@@ -44,6 +63,8 @@ const EDITABLE_FIELD_IDS = [
   "in_pi",
   "in_ca_bonus",
   "in_weapon_level",
+  "in_catalyst_level",
+  "in_catalyst_xp",
 ];
 
 const defaults = {
@@ -92,6 +113,11 @@ const defaults = {
     pendingPb: 0,
     lastProcessedLevel: 1,
   },
+  catalyst: {
+    level: "0",
+    xp: "0",
+    attributes: [],
+  },
   runes: {
     phys: 70,
     arc: 55,
@@ -99,12 +125,18 @@ const defaults = {
   },
   notes: {
     story: "",
+    personality: "",
+    appearance: "",
+    goals: "",
+    npcs: "",
+    quests: "",
     inv: "",
     skills: "",
     magicSimple: "",
     magicComplex: "",
     magicAdvanced: "",
-    npcs: "",
+    diary: "",
+    free: "",
   },
 };
 
@@ -193,12 +225,18 @@ const photoImg = $("charPhoto");
 const photoPlaceholder = $("photoPlaceholder");
 
 const noteStory = $("note_story");
+const notePersonality = $("note_personality");
+const noteAppearance = $("note_appearance");
+const noteGoals = $("note_goals");
+const noteNpcs = $("note_npcs");
+const noteQuests = $("note_quests");
 const noteInv = $("note_inv");
 const noteSkills = $("note_skills");
 const noteMagicSimple = $("note_magic_simple");
 const noteMagicComplex = $("note_magic_complex");
 const noteMagicAdvanced = $("note_magic_advanced");
-const noteNpcs = $("note_npcs");
+const noteDiary = $("note_diary");
+const noteFree = $("note_free");
 
 const rPhys = $("r_phys");
 const rArc = $("r_arc");
@@ -238,6 +276,8 @@ radarTip.hidden = true;
 radarWrap?.appendChild(radarTip);
 
 let photoDataUrl = "";
+let characterIndex = null;
+let activeCharacterId = null;
 let saveTimer = 0;
 let resizeRaf = 0;
 let radarCssSize = 0;
@@ -245,6 +285,9 @@ let radarScheduled = false;
 let photoDbPromise = null;
 let progressionState = clonePlain(defaults.progression);
 let levelingState = clonePlain(defaults.leveling);
+// Preservado apenas para não perder dados de fichas antigas no export/import.
+// A UI de slots de atributo do catalisador foi removida.
+let catalystAttributes = [];
 let previousDerivedSnapshot = null;
 let shouldAutoRaiseResources = false;
 let suppressLevelUpPopup = false;
@@ -372,38 +415,64 @@ function openPhotoDb() {
   return photoDbPromise;
 }
 
-async function savePhotoToDb(dataUrl) {
+// Cada ficha tem sua própria chave de foto: "character_photo_<id>".
+// A chave antiga "character_photo" (sem id) é a foto da ficha única legada.
+function photoKeyFor(id) {
+  return id ? `${PHOTO_KEY}_${id}` : PHOTO_KEY;
+}
+
+async function savePhotoToDb(dataUrl, id = activeCharacterId) {
   const db = await openPhotoDb();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readwrite");
-    tx.objectStore(PHOTO_STORE).put(dataUrl, PHOTO_KEY);
+    tx.objectStore(PHOTO_STORE).put(dataUrl, photoKeyFor(id));
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error || new Error("Falha ao salvar foto"));
   });
 }
 
-async function getPhotoFromDb() {
+async function getPhotoFromDb(id = activeCharacterId) {
   const db = await openPhotoDb();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readonly");
-    const req = tx.objectStore(PHOTO_STORE).get(PHOTO_KEY);
+    const req = tx.objectStore(PHOTO_STORE).get(photoKeyFor(id));
 
     req.onsuccess = () => resolve(typeof req.result === "string" ? req.result : "");
     req.onerror = () => reject(req.error || new Error("Falha ao carregar foto"));
   });
 }
 
-async function clearPhotoFromDb() {
+async function clearPhotoFromDb(id = activeCharacterId) {
   const db = await openPhotoDb();
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(PHOTO_STORE, "readwrite");
-    tx.objectStore(PHOTO_STORE).delete(PHOTO_KEY);
+    tx.objectStore(PHOTO_STORE).delete(photoKeyFor(id));
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error || new Error("Falha ao remover foto"));
   });
+}
+
+// Lê a foto antiga (chave sem id) para migrar para a primeira ficha.
+async function getLegacyPhoto() {
+  const db = await openPhotoDb();
+  return new Promise((resolve) => {
+    const tx = db.transaction(PHOTO_STORE, "readonly");
+    const req = tx.objectStore(PHOTO_STORE).get(PHOTO_KEY);
+    req.onsuccess = () => resolve(typeof req.result === "string" ? req.result : "");
+    req.onerror = () => resolve("");
+  });
+}
+
+async function copyPhotoBetween(srcId, dstId) {
+  try {
+    const src = await getPhotoFromDb(srcId);
+    if (src) await savePhotoToDb(src, dstId);
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function randomGlyphLine(len = 80) {
@@ -453,6 +522,75 @@ function setSaveState(state) {
 
 function showSaveError() {
   setSaveState("erro ao salvar");
+  showToast("Não foi possível salvar a ficha neste aparelho.", "error");
+}
+
+// Toasts discretos e acessíveis. Usa textContent (sem innerHTML) para nunca
+// renderizar HTML vindo do usuário. type: "good" | "warn" | "error" | "info".
+const TOAST_ICONS = { good: "✔", warn: "⚠", error: "✕", info: "•" };
+
+function showToast(message, type = "info", duration = 3600) {
+  const region = $("toastRegion");
+  if (!region) return null;
+
+  const toast = document.createElement("div");
+  toast.className = `toast toast--${type}`;
+  toast.setAttribute("role", type === "error" ? "alert" : "status");
+
+  const icon = document.createElement("span");
+  icon.className = "toast__icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = TOAST_ICONS[type] || TOAST_ICONS.info;
+
+  const text = document.createElement("span");
+  text.className = "toast__text";
+  text.textContent = String(message ?? "");
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast__close";
+  close.setAttribute("aria-label", "Fechar mensagem");
+  close.textContent = "✕";
+
+  toast.append(icon, text, close);
+  region.appendChild(toast);
+
+  let removeTimer = 0;
+  const dismiss = () => {
+    clearTimeout(removeTimer);
+    toast.classList.add("is-leaving");
+    // animationend cobre o caso normal; o timeout cobre reduced-motion (sem animação).
+    toast.addEventListener("animationend", () => toast.remove(), { once: true });
+    window.setTimeout(() => toast.remove(), 300);
+  };
+
+  close.addEventListener("click", dismiss);
+  if (duration > 0) removeTimer = window.setTimeout(dismiss, duration);
+
+  return toast;
+}
+
+function updateXpBar(xpInfo) {
+  const bar = $("xpBar");
+  const fill = $("xpBarFill");
+  const label = $("xpBarLabel");
+  if (!bar || !fill || !label) return;
+
+  // Sem total = nível máximo (tabela acabou) ou cálculo indisponível.
+  if (!xpInfo || xpInfo.total == null) {
+    const atMax = xpInfo && toInt(xpInfo.level, 1) >= MAX_LEVEL;
+    bar.classList.toggle("is-max", Boolean(atMax));
+    fill.style.width = atMax ? "100%" : "0%";
+    bar.setAttribute("aria-valuenow", atMax ? "100" : "0");
+    label.textContent = atMax ? "Nível máximo" : "—";
+    return;
+  }
+
+  const percent = clamp(Math.round(xpInfo.percent ?? 0), 0, 100);
+  bar.classList.remove("is-max");
+  fill.style.width = `${percent}%`;
+  bar.setAttribute("aria-valuenow", String(percent));
+  label.textContent = `${percent}% • faltam ${xpInfo.remaining} XP`;
 }
 
 function getCurrentLevel() {
@@ -615,6 +753,8 @@ function syncSummaryOutputs({ race, derived, xpInfo }) {
 
   if (outXpNext) outXpNext.textContent = xpInfo?.total == null ? "—" : String(xpInfo.total);
   if (outXpLeft) outXpLeft.textContent = xpInfo?.remaining == null ? "—" : String(xpInfo.remaining);
+
+  updateXpBar(xpInfo);
 }
 
 function getLevelUpPointInput(key) {
@@ -863,6 +1003,19 @@ function applyLevelUpSelections() {
   }
 }
 
+function announceLevelUp(gainedLevels, newLevel) {
+  const n = Math.max(0, toInt(gainedLevels, 0));
+  if (n <= 0) return;
+
+  const plural = n > 1 ? "níveis" : "nível";
+  showToast(
+    `Subiu ${n} ${plural}! Agora é nível ${newLevel}.\n` +
+      `Ganhou +${n * 2} PS e +${n} PB para distribuir.`,
+    "good",
+    5000
+  );
+}
+
 function processLevelUps(level, gainedLevelsFromXp = 0) {
   const currentLevel = Math.max(1, toInt(level, 1));
   const lastLevel = Math.max(1, toInt(levelingState.lastProcessedLevel, 1));
@@ -879,6 +1032,7 @@ function processLevelUps(level, gainedLevelsFromXp = 0) {
     shouldAutoRaiseResources = true;
 
     if (!suppressLevelUpPopup) {
+      announceLevelUp(gainedFromXp, currentLevel);
       setTimeout(openLevelUpModalIfNeeded, 0);
     }
 
@@ -898,11 +1052,67 @@ function processLevelUps(level, gainedLevelsFromXp = 0) {
     shouldAutoRaiseResources = true;
 
     if (!suppressLevelUpPopup) {
+      announceLevelUp(gained, currentLevel);
       setTimeout(openLevelUpModalIfNeeded, 0);
     }
   } else if (currentLevel < lastLevel) {
     levelingState.lastProcessedLevel = currentLevel;
   }
+}
+
+// Lê nível/XP do catalisador dos inputs, rola o XP em níveis (teto 20) e
+// escreve os valores normalizados de volta. Funciona mesmo sem CharacterCalc.
+function getNormalizedCatalyst() {
+  const levelInput = $("in_catalyst_level");
+  const xpInput = $("in_catalyst_xp");
+  let level = clamp(toInt(levelInput?.value, 0), 0, MAX_CATALYST_LEVEL);
+  let xp = Math.max(0, toInt(xpInput?.value, 0));
+
+  if (window.CharacterCalc?.normalizeCatalystLevelAndXp) {
+    const n = window.CharacterCalc.normalizeCatalystLevelAndXp({ level, xp });
+    level = clamp(toInt(n.level, level), 0, MAX_CATALYST_LEVEL);
+    xp = Math.max(0, toInt(n.xp, xp));
+    if (levelInput) levelInput.value = String(level);
+    if (xpInput) xpInput.value = String(xp);
+  }
+
+  return { level, xp };
+}
+
+function updateCatalystXpBar(prog) {
+  const bar = $("catalystXpBar");
+  const fill = $("catalystXpBarFill");
+  const label = $("catalystXpBarLabel");
+  if (!bar || !fill || !label) return;
+
+  if (!prog || prog.total == null) {
+    const atMax = prog && toInt(prog.level, 0) >= MAX_CATALYST_LEVEL;
+    bar.classList.toggle("is-max", Boolean(atMax));
+    fill.style.width = atMax ? "100%" : "0%";
+    bar.setAttribute("aria-valuenow", atMax ? "100" : "0");
+    label.textContent = atMax ? "Nível máximo" : "—";
+    return;
+  }
+
+  const percent = clamp(Math.round(prog.percent ?? 0), 0, 100);
+  bar.classList.remove("is-max");
+  fill.style.width = `${percent}%`;
+  bar.setAttribute("aria-valuenow", String(percent));
+  label.textContent = `${percent}% • faltam ${prog.remaining} XP`;
+}
+
+function updateCatalystDisplays(catalyst) {
+  const C = window.CharacterCalc;
+  const bonus = C?.getCatalystBonus
+    ? C.getCatalystBonus(catalyst.level)
+    : clamp(toInt(catalyst.level, 0), 0, MAX_CATALYST_LEVEL);
+
+  setReadOnlyValue("out_catalyst_bonus", `+${bonus} acerto • +${bonus} dano/cura`);
+
+  const prog = C?.getCatalystXpProgress ? C.getCatalystXpProgress(catalyst) : null;
+  setReadOnlyValue("in_catalyst_xp_next", prog?.total == null ? "nível máximo" : prog.total);
+
+  updateCatalystXpBar(prog);
 }
 
 function applyDerivedStats() {
@@ -912,6 +1122,7 @@ function applyDerivedStats() {
   let level = getCurrentLevel();
   let xp = Math.max(0, toInt($("in_xp")?.value, 0));
   const weaponLevel = getCurrentWeaponLevel();
+  const catalyst = getNormalizedCatalyst();
   let gainedLevelsFromXp = 0;
 
   if (window.CharacterCalc?.normalizeLevelAndXp) {
@@ -957,6 +1168,7 @@ function applyDerivedStats() {
       race: race || { name: raceInputValue.trim(), hpBase: 10, pmBase: 0 },
       progression: progressionState,
       weapon: { level: weaponLevel },
+      catalyst: { level: catalyst.level },
     });
 
     sanitizeCurrentResources(derived, previousDerivedSnapshot, shouldAutoRaiseResources);
@@ -1014,6 +1226,7 @@ function applyDerivedStats() {
       }
     : null;
 
+  updateCatalystDisplays(catalyst);
   syncSummaryOutputs({ race, derived, xpInfo });
   refreshLevelUpModal();
   queueRadarDraw();
@@ -1135,6 +1348,12 @@ function collectState() {
 
     leveling: clonePlain(levelingState),
 
+    catalyst: {
+      level: $("in_catalyst_level")?.value || "0",
+      xp: $("in_catalyst_xp")?.value || "0",
+      attributes: Array.isArray(catalystAttributes) ? [...catalystAttributes] : [],
+    },
+
     runes: {
       phys: clamp(toInt(rPhys?.value, 0), 0, 100),
       arc: clamp(toInt(rArc?.value, 0), 0, 100),
@@ -1143,12 +1362,18 @@ function collectState() {
 
     notes: {
       story: noteStory?.value || "",
+      personality: notePersonality?.value || "",
+      appearance: noteAppearance?.value || "",
+      goals: noteGoals?.value || "",
+      npcs: noteNpcs?.value || "",
+      quests: noteQuests?.value || "",
       inv: noteInv?.value || "",
       skills: noteSkills?.value || "",
       magicSimple: noteMagicSimple?.value || "",
       magicComplex: noteMagicComplex?.value || "",
       magicAdvanced: noteMagicAdvanced?.value || "",
-      npcs: noteNpcs?.value || "",
+      diary: noteDiary?.value || "",
+      free: noteFree?.value || "",
     },
   };
 }
@@ -1228,6 +1453,23 @@ function migrateLegacy(state) {
     ? Math.max(1, toInt(savedLeveling.lastProcessedLevel, mergedLevel))
     : mergedLevel;
 
+  if (state.catalyst && typeof state.catalyst === "object") {
+    merged.catalyst.level = String(
+      clamp(toInt(state.catalyst.level, 0), 0, MAX_CATALYST_LEVEL)
+    );
+    merged.catalyst.xp = String(Math.max(0, toInt(state.catalyst.xp, 0)));
+    merged.catalyst.attributes = Array.isArray(state.catalyst.attributes)
+      ? state.catalyst.attributes
+          .filter((key) => STATUS_KEYS.includes(key))
+          .slice(0, 4)
+      : [];
+  } else {
+    // Ficha antiga sem catalisador: padrão seguro.
+    merged.catalyst.level = "0";
+    merged.catalyst.xp = "0";
+    merged.catalyst.attributes = [];
+  }
+
   if (state.runes && typeof state.runes === "object") {
     merged.runes.phys = clamp(toInt(state.runes.phys, merged.runes.phys), 0, 100);
     merged.runes.arc = clamp(toInt(state.runes.arc, merged.runes.arc), 0, 100);
@@ -1236,12 +1478,18 @@ function migrateLegacy(state) {
 
   if (state.notes && typeof state.notes === "object") {
     merged.notes.story = state.notes.story ?? merged.notes.story;
+    merged.notes.personality = state.notes.personality ?? merged.notes.personality;
+    merged.notes.appearance = state.notes.appearance ?? merged.notes.appearance;
+    merged.notes.goals = state.notes.goals ?? merged.notes.goals;
+    merged.notes.npcs = state.notes.npcs ?? merged.notes.npcs;
+    merged.notes.quests = state.notes.quests ?? merged.notes.quests;
     merged.notes.inv = state.notes.inv ?? merged.notes.inv;
     merged.notes.skills = state.notes.skills ?? merged.notes.skills;
     merged.notes.magicSimple = state.notes.magicSimple ?? merged.notes.magicSimple;
     merged.notes.magicComplex = state.notes.magicComplex ?? merged.notes.magicComplex;
     merged.notes.magicAdvanced = state.notes.magicAdvanced ?? merged.notes.magicAdvanced;
-    merged.notes.npcs = state.notes.npcs ?? merged.notes.npcs;
+    merged.notes.diary = state.notes.diary ?? merged.notes.diary;
+    merged.notes.free = state.notes.free ?? merged.notes.free;
   }
 
   return merged;
@@ -1285,6 +1533,13 @@ function applyState(rawState) {
 
   progressionState = clonePlain(state.progression);
   levelingState = clonePlain(state.leveling);
+
+  if ($("in_catalyst_level")) $("in_catalyst_level").value = state.catalyst.level;
+  if ($("in_catalyst_xp")) $("in_catalyst_xp").value = state.catalyst.xp;
+  catalystAttributes = Array.isArray(state.catalyst.attributes)
+    ? [...state.catalyst.attributes]
+    : [];
+
   calcOverrideState = clonePlain(state.calcOverrides || defaults.calcOverrides);
   calcAdjustmentState = clonePlain(state.calcAdjustments || defaults.calcAdjustments);
   syncCalcOverrideUi();
@@ -1294,12 +1549,18 @@ function applyState(rawState) {
   syncRunePair(rSpi, nSpi, state.runes.spi);
 
   if (noteStory) noteStory.value = state.notes.story;
+  if (notePersonality) notePersonality.value = state.notes.personality;
+  if (noteAppearance) noteAppearance.value = state.notes.appearance;
+  if (noteGoals) noteGoals.value = state.notes.goals;
+  if (noteNpcs) noteNpcs.value = state.notes.npcs;
+  if (noteQuests) noteQuests.value = state.notes.quests;
   if (noteInv) noteInv.value = state.notes.inv;
   if (noteSkills) noteSkills.value = state.notes.skills;
   if (noteMagicSimple) noteMagicSimple.value = state.notes.magicSimple;
   if (noteMagicComplex) noteMagicComplex.value = state.notes.magicComplex;
   if (noteMagicAdvanced) noteMagicAdvanced.value = state.notes.magicAdvanced;
-  if (noteNpcs) noteNpcs.value = state.notes.npcs;
+  if (noteDiary) noteDiary.value = state.notes.diary;
+  if (noteFree) noteFree.value = state.notes.free;
 
   suppressLevelUpPopup = true;
   applyDerivedStats();
@@ -1310,8 +1571,118 @@ function applyState(rawState) {
 }
 
 function persistNow() {
+  saveActiveCharacter();
+}
+
+// Salva imediatamente, cancelando o autosave em debounce. Usar antes de
+// trocar/duplicar/excluir/importar para não perder edições recentes.
+function persistNowImmediate() {
+  clearTimeout(saveTimer);
+  persistNow();
+}
+
+function saveAll() {
+  setSaveState("salvando");
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(persistNow, SAVE_DELAY);
+}
+
+/* ============================================================
+   Gerenciador de múltiplas fichas (v9)
+   - índice em INDEX_KEY; cada ficha em CHAR_PREFIX + id
+   - foto por ficha no IndexedDB (photoKeyFor)
+   ============================================================ */
+
+function genCharacterId() {
+  // new Date()/Math.random() são válidos no navegador (a restrição é só do sandbox de workflow).
+  return "c_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function characterDataKey(id) {
+  return CHAR_PREFIX + id;
+}
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function loadIndex() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState()));
+    const raw = localStorage.getItem(INDEX_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.characters) || !parsed.characters.length) return null;
+    return parsed;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+function saveIndex() {
+  try {
+    localStorage.setItem(INDEX_KEY, JSON.stringify(characterIndex));
+  } catch (err) {
+    console.error(err);
+    showSaveError();
+  }
+}
+
+function loadCharacterData(id) {
+  try {
+    const raw = localStorage.getItem(characterDataKey(id));
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+function saveCharacterData(id, state) {
+  localStorage.setItem(characterDataKey(id), JSON.stringify(state));
+}
+
+function removeCharacterData(id) {
+  localStorage.removeItem(characterDataKey(id));
+}
+
+function makeIndexEntry(id, name) {
+  const ts = nowIso();
+  return { id, name: name || "Personagem", createdAt: ts, updatedAt: ts };
+}
+
+function getCharacterEntry(id) {
+  return characterIndex?.characters.find((c) => c.id === id) || null;
+}
+
+function characterDisplayName(entry) {
+  return (entry?.name || "").trim() || "(sem nome)";
+}
+
+// Cria uma ficha nova (NÃO troca para ela). Retorna o id.
+function createCharacter(name, initialState = null) {
+  const id = genCharacterId();
+  saveCharacterData(id, initialState || clonePlain(defaults));
+  characterIndex.characters.push(makeIndexEntry(id, name));
+  saveIndex();
+  return id;
+}
+
+// Salva a ficha ativa (estado atual da tela) no seu slot e atualiza o índice.
+function saveActiveCharacter() {
+  if (!activeCharacterId || !characterIndex) return;
+  try {
+    const state = collectState();
+    saveCharacterData(activeCharacterId, state);
+
+    const entry = getCharacterEntry(activeCharacterId);
+    if (entry) {
+      const typedName = (state.name || "").trim();
+      if (typedName) entry.name = typedName;
+      entry.updatedAt = nowIso();
+    }
+    saveIndex();
     setSaveState("salvo");
   } catch (err) {
     console.error(err);
@@ -1319,10 +1690,196 @@ function persistNow() {
   }
 }
 
-function saveAll() {
-  setSaveState("salvando");
-  clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(persistNow, SAVE_DELAY);
+// Carrega a ficha ativa no DOM (não salva a anterior; quem troca é switchCharacter).
+async function loadActiveCharacterIntoUI() {
+  const data = loadCharacterData(activeCharacterId) || clonePlain(defaults);
+  applyState(data);
+  try {
+    setPhoto(await getPhotoFromDb(activeCharacterId));
+  } catch {
+    setPhoto("");
+  }
+}
+
+async function switchCharacter(id) {
+  if (!id || id === activeCharacterId || !getCharacterEntry(id)) {
+    refreshCharacterSelect();
+    return;
+  }
+
+  persistNowImmediate(); // salva a ficha atual antes de sair
+
+  activeCharacterId = id;
+  characterIndex.activeCharacterId = id;
+  saveIndex();
+
+  await loadActiveCharacterIntoUI();
+  refreshCharacterSelect();
+  setSaveState("salvo");
+}
+
+function onNewCharacter() {
+  persistNowImmediate();
+
+  const n = characterIndex.characters.length + 1;
+  const id = createCharacter(`Personagem ${n}`);
+
+  activeCharacterId = id;
+  characterIndex.activeCharacterId = id;
+  saveIndex();
+
+  applyState(clonePlain(defaults));
+  setPhoto("");
+  clearPhotoFromDb(id).catch(() => {});
+  refreshCharacterSelect();
+  setSaveState("salvo");
+  showToast("Nova ficha criada.", "good", 2400);
+}
+
+async function duplicateActiveCharacter() {
+  persistNowImmediate();
+
+  const srcId = activeCharacterId;
+  const data = loadCharacterData(srcId);
+  if (!data) return;
+
+  const srcEntry = getCharacterEntry(srcId);
+  const baseName = (data.name || srcEntry?.name || "Personagem").trim() || "Personagem";
+  const copyName = `${baseName} — Cópia`;
+
+  const copy = clonePlain(data);
+  copy.name = copyName;
+
+  const newId = createCharacter(copyName, copy);
+  await copyPhotoBetween(srcId, newId);
+
+  activeCharacterId = newId;
+  characterIndex.activeCharacterId = newId;
+  saveIndex();
+
+  await loadActiveCharacterIntoUI();
+  refreshCharacterSelect();
+  showToast("Ficha duplicada (com foto).", "good", 2600);
+}
+
+function renameActiveCharacter() {
+  const entry = getCharacterEntry(activeCharacterId);
+  if (!entry) return;
+
+  const novo = window.prompt("Novo nome da ficha:", entry.name || "");
+  if (novo == null) return;
+
+  const clean = novo.trim();
+  if (!clean) return;
+
+  entry.name = clean;
+  entry.updatedAt = nowIso();
+  saveIndex();
+
+  if (inpName) {
+    inpName.value = clean;
+    syncHeaderStyle();
+  }
+  persistNowImmediate();
+  refreshCharacterSelect();
+  showToast("Ficha renomeada.", "good", 2200);
+}
+
+async function deleteActiveCharacter() {
+  const entry = getCharacterEntry(activeCharacterId);
+  if (!entry || !characterIndex) return;
+
+  const ok = window.confirm(
+    `Tem certeza que deseja excluir a ficha "${characterDisplayName(entry)}"?\n\n` +
+      "Essa ação não pode ser desfeita sem backup. Exporte um JSON antes, se quiser guardar."
+  );
+  if (!ok) return;
+
+  const deletedId = activeCharacterId;
+  removeCharacterData(deletedId);
+  clearPhotoFromDb(deletedId).catch(() => {});
+  characterIndex.characters = characterIndex.characters.filter((c) => c.id !== deletedId);
+
+  if (characterIndex.characters.length === 0) {
+    // Nunca deixar zero fichas: cria uma limpa.
+    const id = createCharacter("Personagem 1");
+    activeCharacterId = id;
+    characterIndex.activeCharacterId = id;
+    saveIndex();
+    applyState(clonePlain(defaults));
+    setPhoto("");
+  } else {
+    activeCharacterId = characterIndex.characters[0].id;
+    characterIndex.activeCharacterId = activeCharacterId;
+    saveIndex();
+    await loadActiveCharacterIntoUI();
+  }
+
+  refreshCharacterSelect();
+  showToast("Ficha excluída.", "warn", 2600);
+}
+
+// Atualiza só o rótulo visível da ficha ativa enquanto o usuário digita o nome
+// (sem reconstruir o seletor inteiro).
+function syncActiveCharacterName() {
+  const name = (inpName?.value || "").trim() || "(sem nome)";
+
+  const sel = $("characterSelect");
+  if (sel) {
+    const opt = Array.from(sel.options).find((o) => o.value === activeCharacterId);
+    if (opt) opt.textContent = name;
+  }
+
+  const label = $("activeCharacterName");
+  if (label) label.textContent = name;
+}
+
+function refreshCharacterSelect() {
+  const sel = $("characterSelect");
+  if (sel && characterIndex) {
+    sel.innerHTML = "";
+    for (const c of characterIndex.characters) {
+      sel.appendChild(new Option(characterDisplayName(c), c.id));
+    }
+    sel.value = activeCharacterId || "";
+  }
+
+  const label = $("activeCharacterName");
+  if (label) {
+    const entry = getCharacterEntry(activeCharacterId);
+    label.textContent = entry ? characterDisplayName(entry) : "—";
+  }
+}
+
+// Migra a ficha única antiga (v8) para a primeira ficha do sistema multi-fichas.
+// NÃO apaga a chave antiga (rpg_card_v8_state) — fica como backup.
+function migrateSingleCharacterToMultiCharacter() {
+  const index = { activeCharacterId: null, characters: [] };
+  let legacy = null;
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) legacy = JSON.parse(raw);
+  } catch (err) {
+    console.error(err);
+  }
+
+  const id = genCharacterId();
+
+  if (legacy && typeof legacy === "object") {
+    const name = (legacy.name || "").trim() || "Personagem 1";
+    saveCharacterData(id, legacy); // dado bruto; applyState/migrateLegacy normaliza ao carregar
+    index.characters.push(makeIndexEntry(id, name));
+  } else {
+    saveCharacterData(id, clonePlain(defaults));
+    index.characters.push(makeIndexEntry(id, "Personagem 1"));
+  }
+
+  index.activeCharacterId = id;
+  characterIndex = index;
+  saveIndex();
+
+  return { migratedFromLegacy: Boolean(legacy && typeof legacy === "object"), id };
 }
 
 function loadAll() {
@@ -1615,31 +2172,45 @@ async function exportState() {
   }
 }
 
+// Importa um JSON como uma FICHA NOVA (não sobrescreve a ficha atual).
 async function importStateFile(file) {
   try {
     const text = await file.text();
     const imported = JSON.parse(text);
 
-    applyState(imported);
-
-    if (typeof imported.photo === "string" && imported.photo) {
-      await savePhotoToDb(imported.photo);
-      setPhoto(imported.photo);
-    } else {
-      await clearPhotoFromDb().catch(() => {});
-      setPhoto("");
+    if (!imported || typeof imported !== "object") {
+      throw new Error("JSON inválido");
     }
 
-    saveAll();
+    persistNowImmediate(); // salva a ficha atual antes
+
+    const id = genCharacterId();
+    const name = (imported.name || "").trim() || `Personagem ${characterIndex.characters.length + 1}`;
+
+    saveCharacterData(id, imported); // applyState/migrateLegacy normaliza ao carregar
+    characterIndex.characters.push(makeIndexEntry(id, name));
+
+    activeCharacterId = id;
+    characterIndex.activeCharacterId = id;
+    saveIndex();
+
+    if (typeof imported.photo === "string" && imported.photo) {
+      await savePhotoToDb(imported.photo, id);
+    }
+
+    await loadActiveCharacterIntoUI();
+    refreshCharacterSelect();
+    showToast("Ficha importada como nova ficha.", "good");
   } catch (err) {
     console.error(err);
-    alert("Arquivo JSON inválido ou corrompido.");
+    showToast("Arquivo JSON inválido ou corrompido. A ficha atual foi mantida.", "error", 5000);
   }
 }
 
 function bindInputsToSave() {
   inpName?.addEventListener("input", () => {
     syncHeaderStyle();
+    syncActiveCharacterName();
     saveAll();
   });
 
@@ -1678,12 +2249,18 @@ function bindInputsToSave() {
 
   [
     noteStory,
+    notePersonality,
+    noteAppearance,
+    noteGoals,
+    noteNpcs,
+    noteQuests,
     noteInv,
     noteSkills,
     noteMagicSimple,
     noteMagicComplex,
     noteMagicAdvanced,
-    noteNpcs
+    noteDiary,
+    noteFree,
   ].forEach((el) => {
     el?.addEventListener("input", saveAll);
   });
@@ -1701,10 +2278,55 @@ function bindInputsToSave() {
   canvas?.addEventListener("pointerleave", hideRadarTip);
 }
 
+// Corrige o valor do campo para dentro do limite ao sair dele (blur).
+// O próprio valor "saltando" para o teto/piso já serve de feedback visual;
+// a Fase 1 acrescenta um toast explicando o ajuste.
+function clampInputToRange(input, min, max) {
+  if (!input) return;
+  // Campo vazio: deixa como está (o placeholder cuida do "0"/"1").
+  if (input.value === "") return;
+
+  const raw = toInt(input.value, min);
+  const clamped = clamp(raw, min, max);
+  input.value = String(clamped);
+
+  if (clamped !== raw) {
+    showToast(`Valor ajustado para ${clamped} (limite ${min}–${max}).`, "warn", 2600);
+  }
+}
+
+function initFieldClamping() {
+  // Campos com faixa fixa do sistema.
+  for (const [id, [min, max]] of Object.entries(CLAMPED_FIELD_RANGES)) {
+    const input = $(id);
+    if (!input) continue;
+
+    input.addEventListener("change", () => {
+      clampInputToRange(input, min, max);
+      applyDerivedStats();
+      saveAll();
+    });
+  }
+
+  // Status (FOR..RES): impede valores negativos/absurdos, mantém 0-999.
+  for (const key of STATUS_KEYS) {
+    const input = $("st_" + key);
+    if (!input) continue;
+
+    input.addEventListener("change", () => {
+      clampInputToRange(input, 0, 999);
+      applyDerivedStats();
+      saveAll();
+    });
+  }
+}
+
 function resetForm() {
-  localStorage.removeItem(STORAGE_KEY);
+  // Reseta a FICHA ATIVA (mantém as outras e o backup v8). persistNow() no fim
+  // grava a ficha ativa zerada no seu próprio slot.
   progressionState = clonePlain(defaults.progression);
   levelingState = clonePlain(defaults.leveling);
+  catalystAttributes = [];
   calcOverrideState = clonePlain(defaults.calcOverrides);
   calcAdjustmentState = clonePlain(defaults.calcAdjustments);
   currentBaseCalcValues = {};
@@ -1726,6 +2348,8 @@ function resetForm() {
   $("in_pi").value = defaults.fields.pi;
   $("in_ca_bonus").value = defaults.fields.caBonus;
   $("in_weapon_level").value = defaults.fields.weaponLevel;
+  if ($("in_catalyst_level")) $("in_catalyst_level").value = defaults.catalyst.level;
+  if ($("in_catalyst_xp")) $("in_catalyst_xp").value = defaults.catalyst.xp;
 
   for (const key of STATUS_KEYS) {
     const el = $("st_" + key);
@@ -1737,12 +2361,18 @@ function resetForm() {
   syncRunePair(rSpi, nSpi, defaults.runes.spi);
 
   if (noteStory) noteStory.value = defaults.notes.story;
+  if (notePersonality) notePersonality.value = defaults.notes.personality;
+  if (noteAppearance) noteAppearance.value = defaults.notes.appearance;
+  if (noteGoals) noteGoals.value = defaults.notes.goals;
+  if (noteNpcs) noteNpcs.value = defaults.notes.npcs;
+  if (noteQuests) noteQuests.value = defaults.notes.quests;
   if (noteInv) noteInv.value = defaults.notes.inv;
   if (noteSkills) noteSkills.value = defaults.notes.skills;
   if (noteMagicSimple) noteMagicSimple.value = defaults.notes.magicSimple;
   if (noteMagicComplex) noteMagicComplex.value = defaults.notes.magicComplex;
   if (noteMagicAdvanced) noteMagicAdvanced.value = defaults.notes.magicAdvanced;
-  if (noteNpcs) noteNpcs.value = defaults.notes.npcs;
+  if (noteDiary) noteDiary.value = defaults.notes.diary;
+  if (noteFree) noteFree.value = defaults.notes.free;
 
   syncCalcOverrideUi();
   setActiveTab(defaults.activeTab);
@@ -1757,11 +2387,22 @@ function resetForm() {
   persistNow();
 }
 
+const MAX_PHOTO_BYTES = 20 * 1024 * 1024; // 20 MB antes de comprimir
+
 async function handlePhotoChange() {
   const file = inpPhoto?.files?.[0];
   if (inpPhoto) inpPhoto.value = "";
   if (!file) return;
-  if (!file.type || !file.type.startsWith("image/")) return;
+
+  if (!file.type || !file.type.startsWith("image/")) {
+    showToast("Escolha um arquivo de imagem (JPG, PNG, WebP...).", "warn");
+    return;
+  }
+
+  if (file.size > MAX_PHOTO_BYTES) {
+    showToast("Imagem muito grande (máx. 20 MB). Tente uma menor.", "warn", 5000);
+    return;
+  }
 
   try {
     setSaveState("salvando");
@@ -1770,11 +2411,38 @@ async function handlePhotoChange() {
     await savePhotoToDb(compressed);
     setPhoto(compressed);
     saveAll();
+    showToast("Foto salva neste aparelho.", "good", 2600);
   } catch (err) {
     console.error(err);
-    alert("Não foi possível processar essa imagem.");
-    showSaveError();
+    showToast("Não foi possível processar essa imagem.", "error", 5000);
+    setSaveState("erro ao salvar");
   }
+}
+
+// Insere um cabeçalho de sessão datado no topo do diário. Mantém tudo em um
+// único campo de texto (note_diary), então a migração de fichas antigas é trivial.
+function addSessionEntry() {
+  const el = noteDiary || $("note_diary");
+  if (!el) return;
+
+  const now = new Date();
+  const data = now.toLocaleDateString("pt-BR");
+  const hora = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const header = `── Sessão ${data} • ${hora} ──\n`;
+
+  const current = el.value;
+  el.value = current ? `${header}\n${current}` : header;
+
+  // Abre o card do diário caso esteja recolhido e leva o foco para escrever.
+  el.closest("details")?.setAttribute("open", "");
+  el.focus();
+  try {
+    el.setSelectionRange(header.length, header.length);
+  } catch {}
+
+  // Dispara o autosave já existente.
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+  showToast("Nova entrada de sessão adicionada ao diário.", "good", 2400);
 }
 
 async function removePhoto() {
@@ -1797,6 +2465,7 @@ async function init() {
   initRuneSync();
   initLevelUpModal();
   bindInputsToSave();
+  initFieldClamping();
   syncCalcOverrideUi();
 
   inpPhoto?.addEventListener("change", handlePhotoChange);
@@ -1809,21 +2478,57 @@ async function init() {
     if (file) await importStateFile(file);
   });
 
-  $("btnReset")?.addEventListener("click", resetForm);
+  $("btnNewSessionEntry")?.addEventListener("click", addSessionEntry);
+
+  $("btnReset")?.addEventListener("click", () => {
+    const ok = window.confirm(
+      "Resetar a ficha apaga TODOS os dados deste personagem (status, notas, foto) deste aparelho.\n\n" +
+        "Exporte um backup em JSON antes, se quiser guardar.\n\nDeseja mesmo resetar?"
+    );
+    if (ok) resetForm();
+  });
   $("btnPrint")?.addEventListener("click", () => window.print());
   btnToggleCalcOverride?.addEventListener("click", toggleCalcOverrideMode);
 
-  const loaded = loadAll();
+  // ----- Gerenciador de fichas (v9) -----
+  $("characterSelect")?.addEventListener("change", (evt) => {
+    switchCharacter(evt.target.value);
+  });
+  $("btnNewCharacter")?.addEventListener("click", onNewCharacter);
+  $("btnDuplicateCharacter")?.addEventListener("click", duplicateActiveCharacter);
+  $("btnRenameCharacter")?.addEventListener("click", renameActiveCharacter);
+  $("btnDeleteCharacter")?.addEventListener("click", deleteActiveCharacter);
 
-  if (loaded) {
-    applyState(loaded);
-  } else {
-    resetForm();
+  // Carrega o índice; migra a ficha única antiga (v8) na primeira vez.
+  characterIndex = loadIndex();
+  let migration = null;
+  if (!characterIndex) {
+    migration = migrateSingleCharacterToMultiCharacter();
   }
 
+  activeCharacterId = characterIndex.activeCharacterId;
+  if (!getCharacterEntry(activeCharacterId)) {
+    activeCharacterId = characterIndex.characters[0].id;
+    characterIndex.activeCharacterId = activeCharacterId;
+    saveIndex();
+  }
+
+  // Move a foto da ficha única antiga para a primeira ficha (só na migração).
+  if (migration?.migratedFromLegacy) {
+    try {
+      const legacyPhoto = await getLegacyPhoto();
+      if (legacyPhoto) await savePhotoToDb(legacyPhoto, activeCharacterId);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const data = loadCharacterData(activeCharacterId) || clonePlain(defaults);
+  applyState(data);
+  refreshCharacterSelect();
+
   try {
-    const photo = await getPhotoFromDb();
-    setPhoto(photo);
+    setPhoto(await getPhotoFromDb(activeCharacterId));
   } catch {
     setPhoto("");
   }
