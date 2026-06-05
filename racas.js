@@ -42,9 +42,9 @@ window.RaceDB = (() => {
     { name: "Nerianos", aliases: ["neriano", "nerianos"], hpBase: 19, pmBase: 5 },
     { name: "Rúnaris", aliases: ["runaris", "rúnaris"], hpBase: 16, pmBase: 7 },
     { name: "Meio-Elfos", aliases: ["meio elfo", "meio-elfo", "meio elfos", "meio-elfos"], hpBase: 20, pmBase: 4 },
-    { name: "Rubricantos", aliases: ["rubricanto", "rubricantos"], hpBase: 18, pmBase: 4 }
-    { name: "Nepharim", aliases: ["nepharim", "nepharims"], hpBase: 20, pmBase: 4 }
-    { name: "Slimes", aliases: ["slime", "slime"], hpBase: 16, pmBase: 4 }
+    { name: "Rubricantos", aliases: ["rubricanto", "rubricantos"], hpBase: 18, pmBase: 4 },
+    { name: "Nepharim", aliases: ["nepharim", "nepharims"], hpBase: 20, pmBase: 4 },
+    { name: "Slimes", aliases: ["slime", "slime"], hpBase: 16, pmBase: 4 },
   ]);
 
   function normalize(text) {
